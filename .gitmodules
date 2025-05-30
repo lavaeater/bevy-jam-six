@@ -1,0 +1,4 @@
+[submodule "bevy-jam-six-common"]
+	path = bevy-jam-six-common
+	url = git@github.com:lavaeater/bevy-jam-six-common.git
+	branch = lavaeater

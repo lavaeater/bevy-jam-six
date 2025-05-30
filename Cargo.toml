@@ -4,20 +4,6 @@ authors = ["Tommie Nygren <tommie.nygren@gmail.com>"]
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-bevy = { version = "0.16", features = ["wayland"] }
-rand = "0.8"
-# Compile low-severity logs out of native builds for performance.
-log = { version = "0.4", features = [
-    "max_level_debug",
-    "release_max_level_warn",
-] }
-# Compile low-severity logs out of web builds for performance.
-tracing = { version = "0.1", features = [
-    "max_level_debug",
-    "release_max_level_warn",
-] }
-
 # Your web builds will start failing if you add a dependency that pulls in `getrandom` v0.3+.
 # To fix this, you should tell `getrandom` to use the `wasm_js` backend on Wasm.
 # See: <https://docs.rs/getrandom/0.3.3/getrandom/#webassembly-support>.
@@ -124,3 +110,18 @@ codegen-units = 4
 
 [profile.ci.package."*"]
 opt-level = 0
+
+[dependencies]
+bevy = { version = "0.16", features = ["wayland"] }
+rand = "0.8"
+bevy-jam-six-common = { path = "bevy-jam-six-common" }
+# Compile low-severity logs out of native builds for performance.
+log = { version = "0.4", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }
+# Compile low-severity logs out of web builds for performance.
+tracing = { version = "0.1", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }

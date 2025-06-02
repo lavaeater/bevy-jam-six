@@ -24,7 +24,7 @@ pub(super) fn plugin(app: &mut App) {
                 draw_curve,
                 draw_control_points,
             )
-                .chain(),
+                .chain().run_if(in_state(Screen::Editor)),
         );
 }
 

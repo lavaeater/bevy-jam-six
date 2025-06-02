@@ -16,6 +16,27 @@ During the race, you can pick up powerups. They are chain-based. Are they? Shoul
 
 Is the racing and chain-thing a thing, really?
 
+Yes it is. It is what we are doing, and that's it.
+
+
+
+## Backlog
+
+### Track Generation / Editor
+
+### Rendering
+
+### Race Car Physics
+
+### Shooting
+
+### Lap Counting
+
+### Car Damage
+
+### Race Commentator
+
+Based on our facts of the world engine.
  
 
 This project was generated using the [Bevy New 2D](https://github.com/TheBevyFlock/bevy_new_2d) template.

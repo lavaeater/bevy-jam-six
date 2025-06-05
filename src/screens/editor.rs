@@ -27,6 +27,8 @@ pub(super) fn plugin(app: &mut App) {
                 .run_if(in_state(Screen::Editor)),
         );
 }
+#[derive(Component)]
+pub struct TrackPart;
 
 pub fn setup_editor(mut commands: Commands) {
     // Initialize the modes with their defaults:
@@ -97,12 +99,36 @@ struct ControlPoints {
 fn update_curve(
     control_points: Res<ControlPoints>,
     mut curve: ResMut<Curves>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     if !control_points.is_changed() {
         return;
     }
 
-    *curve = form_curve(&control_points);
+    let points =
+        control_points.points.iter().copied();
+    let spline = CubicCardinalSpline::new_catmull_rom(points);
+
+    let other_things = compute_normals(&control_points.points);
+    let spline_inner = CubicCardinalSpline::new_catmull_rom(other_things.0.iter().copied());
+    let spline_outer = CubicCardinalSpline::new_catmull_rom(other_things.1.iter().copied());
+    *curve = Curves {
+        inner_curve: spline_inner.to_curve_cyclic().ok(),
+        center_curve: spline.to_curve_cyclic().ok(),
+        outer_curve: spline_outer.to_curve_cyclic().ok(),
+    };
+    let track_curve = curve.center_curve.as_ref().unwrap();
+    let resolution = 100 * track_curve.segments().len();
+    let track_curve = track_curve.iter_positions(resolution).map(|pt| { 
+        // Here is where we create our polygons, our normals, etc. 
+        pt.extend(0.0) 
+    }).collect::<Vec<_>>();
+        
+    let shapes = meshes = build_meshes(&curve);
+}
+
+fn build_meshes(p0: &ResMut<Curves>) -> ResMut<Assets<Mesh>> {
+    todo!()
 }
 
 /// This system uses gizmos to draw the current [`Curves`] by breaking it up into a large number
@@ -134,6 +160,8 @@ fn draw_curve(curve: Res<Curves>, mut gizmos: Gizmos) {
         outer_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
         Color::srgb(1.0, 1.0, 1.0),
     );
+    
+    gizmos.
 }
 
 /// This system uses gizmos to draw the current [control points] as circles, displaying their
@@ -168,6 +196,8 @@ fn form_curve(
         outer_curve: spline_outer.to_curve_cyclic().ok(),
     }
 }
+
+
 // 
 // pub fn tangent_and_normal_at(
 //     spline: &CubicCardinalSpline<Vec2>,

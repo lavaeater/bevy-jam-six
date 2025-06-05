@@ -1,7 +1,6 @@
 //! The screen state for the main gameplay.
 
 use crate::screens::Screen;
-use bevy::render::view::screenshot::save_to_disk;
 use bevy::{
     gizmos::gizmos::Gizmos,
     input::{ButtonState, mouse::MouseButtonInput},

@@ -34,9 +34,7 @@ pub fn setup_editor(mut commands: Commands) {
     // Starting data for [`ControlPoints`]:
     let default_points = vec![
         vec2(-500., -200.),
-        vec2(-250., 250.),
-        vec2(250., 250.),
-        vec2(500., -200.),
+        vec2(-500., -150.)
     ];
     
     let default_control_data = ControlPoints {
@@ -76,44 +74,6 @@ pub fn setup_editor(mut commands: Commands) {
 // Curve-related Resources and Systems
 // -----------------------------------
 
-/// The current spline mode, which determines the spline method used in conjunction with the
-/// control points.
-#[derive(Clone, Copy, Resource, Default)]
-enum SplineMode {
-    #[default]
-    Hermite,
-    Cardinal,
-    B,
-}
-
-impl std::fmt::Display for SplineMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SplineMode::Hermite => f.write_str("Hermite"),
-            SplineMode::Cardinal => f.write_str("Cardinal"),
-            SplineMode::B => f.write_str("B"),
-        }
-    }
-}
-
-/// The current cycling mode, which determines whether the control points should be interpolated
-/// cyclically (to make a loop).
-#[derive(Clone, Copy, Resource, Default)]
-enum CyclingMode {
-    #[default]
-    NotCyclic,
-    Cyclic,
-}
-
-impl std::fmt::Display for CyclingMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CyclingMode::NotCyclic => f.write_str("Not Cyclic"),
-            CyclingMode::Cyclic => f.write_str("Cyclic"),
-        }
-    }
-}
-
 /// The curve presently being displayed. This is optional because there may not be enough control
 /// points to actually generate a curve.
 #[derive(Clone, Default, Resource)]
@@ -148,14 +108,30 @@ fn update_curve(
 /// This system uses gizmos to draw the current [`Curves`] by breaking it up into a large number
 /// of line segments.
 fn draw_curve(curve: Res<Curves>, mut gizmos: Gizmos) {
-    let Some(ref curve) = curve.center_curve else {
+    let Some(ref center_curve) = curve.center_curve else {
+        return;
+    };
+    let Some(ref inner_curve) = curve.inner_curve else {
+        return;
+    };
+    let Some(ref outer_curve) = curve.outer_curve else {
         return;
     };
     // Scale resolution with curve length so it doesn't degrade as the length increases.
-    let resolution = 100 * curve.segments().len();
+    let resolution = 100 * center_curve.segments().len();
     //Modify this to insert race track sections!
     gizmos.linestrip(
-        curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
+        center_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
+        Color::srgb(1.0, 1.0, 1.0),
+    );
+
+    gizmos.linestrip(
+        inner_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
+        Color::srgb(1.0, 1.0, 1.0),
+    );
+
+    gizmos.linestrip(
+        outer_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
         Color::srgb(1.0, 1.0, 1.0),
     );
 }
@@ -182,11 +158,72 @@ fn form_curve(
     let points =
         control_points.points.iter().copied();
     let spline = CubicCardinalSpline::new_catmull_rom(points);
+    
+    let other_things = compute_normals(&control_points.points);
+    let spline_inner = CubicCardinalSpline::new_catmull_rom(other_things.0.iter().copied());
+    let spline_outer = CubicCardinalSpline::new_catmull_rom(other_things.1.iter().copied());
     Curves {
-        inner_curve: None,
+        inner_curve: spline_inner.to_curve_cyclic().ok(),
         center_curve: spline.to_curve_cyclic().ok(),
-        outer_curve: None,
+        outer_curve: spline_outer.to_curve_cyclic().ok(),
     }
+}
+// 
+// pub fn tangent_and_normal_at(
+//     spline: &CubicCardinalSpline<Vec2>,
+//     t: f32,
+//     delta: f32,
+// ) -> Option<(Vec2, Vec2)> {
+//     // Make sure t is in range [0.0, 1.0)
+//     if t < 0.0 || t >= 1.0 {
+//         return None;
+//     }
+// 
+//     // Sample the spline at two nearby points
+//     let p1 = spline.sample(t);
+//     let p2 = spline.sample((t + delta).min(1.0)); // Clamp to avoid overshooting
+// 
+//     let tangent = (p2 - p1).normalize_or_zero();
+// 
+//     if tangent == Vec2::ZERO {
+//         return None;
+//     }
+// 
+//     // 90 degree rotation: [-y, x]
+//     let normal = Vec2::new(-tangent.y, tangent.x);
+// 
+//     Some((tangent, normal))
+// }
+
+pub fn compute_normals(
+    control_points: &[Vec2],
+) -> (Vec<Vec2>, Vec<Vec2>) {
+    let mut normal_one = Vec::new();
+    let mut normal_two = Vec::new();
+    let tension = 0.5;
+
+    for i in 0..control_points.len() {
+        let tangent = if i == 0 {
+            // Forward difference at start
+            (control_points[i + 1] - control_points[i]) * tension * 2.0
+        } else if i == control_points.len() - 1 {
+            // Backward difference at end
+            (control_points[i] - control_points[i - 1]) * tension * 2.0
+        } else {
+            // Central difference for internal points
+            (control_points[i + 1] - control_points[i - 1]) * tension
+        };
+
+        let tangent = tangent.normalize_or_zero();
+
+        let normal = tangent.clone().rotate(Vec2::from_angle(std::f32::consts::PI / -2.0)) * 10.0; // 90° rotation
+        let normal2 = normal.clone().rotate(Vec2::from_angle(std::f32::consts::PI));
+
+        normal_one.push(control_points[i] + normal); 
+        normal_two.push(control_points[i] + normal2);
+    }
+
+    (normal_one, normal_two)
 }
 
 // -----------------------------------

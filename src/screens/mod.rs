@@ -5,7 +5,6 @@ mod loading;
 mod splash;
 mod title;
 mod editor;
-mod editor_updated;
 
 use bevy::prelude::*;
 

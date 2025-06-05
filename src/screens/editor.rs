@@ -1,15 +1,15 @@
 //! The screen state for the main gameplay.
 
-use std::fs;
+use crate::screens::Screen;
+use bevy::render::view::screenshot::save_to_disk;
 use bevy::{
     gizmos::gizmos::Gizmos,
     input::{ButtonState, mouse::MouseButtonInput},
     math::{cubic_splines::*, vec2},
-    prelude::*
+    prelude::*,
 };
-use bevy::render::view::screenshot::save_to_disk;
 use serde::{Deserialize, Serialize};
-use crate::{screens::Screen};
+use std::fs;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Screen::Editor), setup_editor)
@@ -26,7 +26,8 @@ pub(super) fn plugin(app: &mut App) {
                 draw_curve,
                 draw_control_points,
             )
-                .chain().run_if(in_state(Screen::Editor)),
+                .chain()
+                .run_if(in_state(Screen::Editor)),
         );
 }
 
@@ -63,7 +64,7 @@ pub fn setup_editor(mut commands: Commands) {
     // Mouse tracking information:
     commands.insert_resource(MousePosition::default());
     commands.insert_resource(MouseEditMove::default());
-    
+
     // The instructions and modes are rendered on the left-hand side in a column.
     let instructions_text = "Click and drag to add control points and their tangents\n\
         R: Remove the last control point\n\
@@ -88,7 +89,6 @@ pub fn setup_editor(mut commands: Commands) {
             parent.spawn((CyclingModeText, Text(cycling_mode_text), style.clone()));
         });
 }
-
 
 // -----------------------------------
 // Curve-related Resources and Systems
@@ -135,7 +135,11 @@ impl std::fmt::Display for CyclingMode {
 /// The curve presently being displayed. This is optional because there may not be enough control
 /// points to actually generate a curve.
 #[derive(Clone, Default, Resource)]
-struct Curve(Option<CubicCurve<Vec2>>);
+struct Curves {
+    pub inner_curve: Option<CubicCurve<Vec2>>,
+    pub center_curve: Option<CubicCurve<Vec2>>,
+    pub outer_curve: Option<CubicCurve<Vec2>>,
+}
 
 /// The control points used to generate a curve. The tangent components are only used in the case of
 /// Hermite interpolation.
@@ -144,8 +148,7 @@ struct ControlPoints {
     points_and_tangents: Vec<(Vec2, Vec2)>,
 }
 
-
-/// This system is responsible for updating the [`Curve`] when the [control points] or active modes
+/// This system is responsible for updating the [`Curves`] when the [control points] or active modes
 /// change.
 ///
 /// [control points]: ControlPoints
@@ -153,7 +156,7 @@ fn update_curve(
     control_points: Res<ControlPoints>,
     spline_mode: Res<SplineMode>,
     cycling_mode: Res<CyclingMode>,
-    mut curve: ResMut<Curve>,
+    mut curve: ResMut<Curves>,
 ) {
     if !control_points.is_changed() && !spline_mode.is_changed() && !cycling_mode.is_changed() {
         return;
@@ -162,10 +165,10 @@ fn update_curve(
     *curve = form_curve(&control_points, *spline_mode, *cycling_mode);
 }
 
-/// This system uses gizmos to draw the current [`Curve`] by breaking it up into a large number
+/// This system uses gizmos to draw the current [`Curves`] by breaking it up into a large number
 /// of line segments.
-fn draw_curve(curve: Res<Curve>, mut gizmos: Gizmos) {
-    let Some(ref curve) = curve.0 else {
+fn draw_curve(curve: Res<Curves>, mut gizmos: Gizmos) {
+    let Some(ref curve) = curve.center_curve else {
         return;
     };
     // Scale resolution with curve length so it doesn't degrade as the length increases.
@@ -195,38 +198,50 @@ fn draw_control_points(
     }
 }
 
-/// Helper function for generating a [`Curve`] from [control points] and selected modes.
+/// Helper function for generating a [`Curves`] from [control points] and selected modes.
 ///
 /// [control points]: ControlPoints
 fn form_curve(
     control_points: &ControlPoints,
     spline_mode: SplineMode,
     cycling_mode: CyclingMode,
-) -> Curve {
+) -> Curves {
     let (points, tangents): (Vec<_>, Vec<_>) =
         control_points.points_and_tangents.iter().copied().unzip();
 
     match spline_mode {
         SplineMode::Hermite => {
             let spline = CubicHermite::new(points, tangents);
-            Curve(match cycling_mode {
-                CyclingMode::NotCyclic => spline.to_curve().ok(),
-                CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
-            })
+            Curves {
+                inner_curve: None,
+                center_curve: match cycling_mode {
+                    CyclingMode::NotCyclic => spline.to_curve().ok(),
+                    CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
+                },
+                outer_curve: None,
+            }
         }
         SplineMode::Cardinal => {
             let spline = CubicCardinalSpline::new_catmull_rom(points);
-            Curve(match cycling_mode {
-                CyclingMode::NotCyclic => spline.to_curve().ok(),
-                CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
-            })
+            Curves {
+                inner_curve: None,
+                center_curve: match cycling_mode {
+                    CyclingMode::NotCyclic => spline.to_curve().ok(),
+                    CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
+                },
+                outer_curve: None,
+            }
         }
         SplineMode::B => {
             let spline = CubicBSpline::new(points);
-            Curve(match cycling_mode {
-                CyclingMode::NotCyclic => spline.to_curve().ok(),
-                CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
-            })
+            Curves {
+                inner_curve: None,
+                center_curve: match cycling_mode {
+                    CyclingMode::NotCyclic => spline.to_curve().ok(),
+                    CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
+                },
+                outer_curve: None,
+            }
         }
     }
 }
@@ -417,8 +432,7 @@ fn handle_keypress(
     }
 }
 
-fn save_map() {
-}
+fn save_map() {}
 
 fn save_to_file(data: &RaceTrack, path: &str) {
     let json = serde_json::to_string_pretty(data).unwrap();

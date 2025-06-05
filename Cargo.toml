@@ -1,3 +1,5 @@
+cargo-features = ["codegen-backend"]
+
 [package]
 name = "bevy-jam-six"
 authors = ["Tommie Nygren <tommie.nygren@gmail.com>"]
@@ -74,6 +76,7 @@ nonstandard_macro_braces = "warn"
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1
+codegen-backend = "cranelift"
 
 # Enable a large amount of optimization in the dev profile for dependencies.
 [profile.dev.package."*"]

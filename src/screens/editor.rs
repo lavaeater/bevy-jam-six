@@ -61,9 +61,7 @@ pub fn setup_editor(mut commands: Commands) {
     // Mouse tracking information:
     commands.insert_resource(MousePosition::default());
     commands.insert_resource(MouseEditMove::default());
-
-    commands.spawn(Camera2d);
-
+    
     // The instructions and modes are rendered on the left-hand side in a column.
     let instructions_text = "Click and drag to add control points and their tangents\n\
         R: Remove the last control point\n\

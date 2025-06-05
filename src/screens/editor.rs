@@ -9,6 +9,9 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
+use bevy::asset::RenderAssetUsages;
+use bevy::color::palettes::basic::GRAY;
+use bevy::render::mesh::{Indices, PrimitiveTopology};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Screen::Editor), setup_editor)
@@ -79,11 +82,7 @@ pub fn setup_editor(mut commands: Commands) {
 /// The curve presently being displayed. This is optional because there may not be enough control
 /// points to actually generate a curve.
 #[derive(Clone, Default, Resource)]
-struct Curves {
-    pub inner_curve: Option<CubicCurve<Vec2>>,
-    pub center_curve: Option<CubicCurve<Vec2>>,
-    pub outer_curve: Option<CubicCurve<Vec2>>,
-}
+struct Curves(Option<CubicCurve<Vec2>>);
 
 /// The control points used to generate a curve. The tangent components are only used in the case of
 /// Hermite interpolation.
@@ -98,49 +97,87 @@ struct ControlPoints {
 /// [control points]: ControlPoints
 fn update_curve(
     control_points: Res<ControlPoints>,
+    mut commands: Commands,
     mut curve: ResMut<Curves>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut mesh_query: Query<Entity, With<TrackPart>>,
 ) {
     if !control_points.is_changed() {
         return;
     }
 
+    for mesh in mesh_query.iter_mut() {
+        commands.entity(mesh).despawn();
+    }
+
+
     let points =
         control_points.points.iter().copied();
     let spline = CubicCardinalSpline::new_catmull_rom(points);
-
-    let other_things = compute_normals(&control_points.points);
-    let spline_inner = CubicCardinalSpline::new_catmull_rom(other_things.0.iter().copied());
-    let spline_outer = CubicCardinalSpline::new_catmull_rom(other_things.1.iter().copied());
-    *curve = Curves {
-        inner_curve: spline_inner.to_curve_cyclic().ok(),
-        center_curve: spline.to_curve_cyclic().ok(),
-        outer_curve: spline_outer.to_curve_cyclic().ok(),
-    };
-    let track_curve = curve.center_curve.as_ref().unwrap();
+    
+    *curve = Curves(spline.to_curve_cyclic().ok());
+    let track_curve = curve.0.as_ref().unwrap();
     let resolution = 100 * track_curve.segments().len();
-    let track_curve = track_curve.iter_positions(resolution).map(|pt| { 
-        // Here is where we create our polygons, our normals, etc. 
-        pt.extend(0.0) 
-    }).collect::<Vec<_>>();
+    let track_curve = track_curve.iter_positions(resolution)
+    //     .map(|pt| { 
+    //     // Here is where we create our polygons, our normals, etc. 
+    //     pt.extend(0.0) 
+    // })
+        .collect::<Vec<_>>();
+    
+    let bounds = compute_bounds(&track_curve);
+    
+    for (i, (p0, p1)) in bounds.iter().enumerate() {
+        let mut mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::RENDER_WORLD,
+        );
+        /*
+        our triangles are, maybe?
+        p2---p3
+        p0  
+             p3
+        p0---p1
         
-    let shapes = meshes = build_meshes(&curve);
-}
+        
+         */
+        let (p2, p3) = if i == bounds.len() - 1 {&bounds[0]} else {&bounds[i + 1]};
+        
+        let vertices = vec![
+            [p0.x, p0.y, 0.0], //0
+            [p1.x, p1.y, 0.0], //1
+            [p2.x, p2.y, 0.0], //2
+            [p3.x, p3.y, 0.0], //3
+        ];
+        let color = LinearRgba::from(GRAY);
+        let colors = vertices.iter().map(|_| 
+        [color.red, color.green, color.blue, color.alpha]
+        ).collect::<Vec<_>>();   ;
+        
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
 
-fn build_meshes(p0: &ResMut<Curves>) -> ResMut<Assets<Mesh>> {
-    todo!()
+        let indices = vec![
+            0, 2, 3,
+            0,1,3
+        ];
+        mesh.insert_indices(Indices::U32(indices));
+
+        commands.spawn((
+                           TrackPart,
+                           Mesh2d(meshes.add(mesh)),
+                       MeshMaterial2d(materials.add(Color::from(GRAY)))
+                           ,)
+        );
+
+    }
 }
 
 /// This system uses gizmos to draw the current [`Curves`] by breaking it up into a large number
 /// of line segments.
 fn draw_curve(curve: Res<Curves>, mut gizmos: Gizmos) {
-    let Some(ref center_curve) = curve.center_curve else {
-        return;
-    };
-    let Some(ref inner_curve) = curve.inner_curve else {
-        return;
-    };
-    let Some(ref outer_curve) = curve.outer_curve else {
+    let Some(ref center_curve) = curve.0 else {
         return;
     };
     // Scale resolution with curve length so it doesn't degrade as the length increases.
@@ -150,18 +187,6 @@ fn draw_curve(curve: Res<Curves>, mut gizmos: Gizmos) {
         center_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
         Color::srgb(1.0, 1.0, 1.0),
     );
-
-    gizmos.linestrip(
-        inner_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
-        Color::srgb(1.0, 1.0, 1.0),
-    );
-
-    gizmos.linestrip(
-        outer_curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
-        Color::srgb(1.0, 1.0, 1.0),
-    );
-    
-    gizmos.
 }
 
 /// This system uses gizmos to draw the current [control points] as circles, displaying their
@@ -187,49 +212,13 @@ fn form_curve(
         control_points.points.iter().copied();
     let spline = CubicCardinalSpline::new_catmull_rom(points);
     
-    let other_things = compute_normals(&control_points.points);
-    let spline_inner = CubicCardinalSpline::new_catmull_rom(other_things.0.iter().copied());
-    let spline_outer = CubicCardinalSpline::new_catmull_rom(other_things.1.iter().copied());
-    Curves {
-        inner_curve: spline_inner.to_curve_cyclic().ok(),
-        center_curve: spline.to_curve_cyclic().ok(),
-        outer_curve: spline_outer.to_curve_cyclic().ok(),
-    }
+    Curves(spline.to_curve_cyclic().ok())
 }
 
-
-// 
-// pub fn tangent_and_normal_at(
-//     spline: &CubicCardinalSpline<Vec2>,
-//     t: f32,
-//     delta: f32,
-// ) -> Option<(Vec2, Vec2)> {
-//     // Make sure t is in range [0.0, 1.0)
-//     if t < 0.0 || t >= 1.0 {
-//         return None;
-//     }
-// 
-//     // Sample the spline at two nearby points
-//     let p1 = spline.sample(t);
-//     let p2 = spline.sample((t + delta).min(1.0)); // Clamp to avoid overshooting
-// 
-//     let tangent = (p2 - p1).normalize_or_zero();
-// 
-//     if tangent == Vec2::ZERO {
-//         return None;
-//     }
-// 
-//     // 90 degree rotation: [-y, x]
-//     let normal = Vec2::new(-tangent.y, tangent.x);
-// 
-//     Some((tangent, normal))
-// }
-
-pub fn compute_normals(
+pub fn compute_bounds(
     control_points: &[Vec2],
-) -> (Vec<Vec2>, Vec<Vec2>) {
-    let mut normal_one = Vec::new();
-    let mut normal_two = Vec::new();
+) -> Vec<(Vec2,Vec2)> {
+    let mut normals = Vec::new();
     let tension = 0.5;
 
     for i in 0..control_points.len() {
@@ -246,14 +235,13 @@ pub fn compute_normals(
 
         let tangent = tangent.normalize_or_zero();
 
-        let normal = tangent.clone().rotate(Vec2::from_angle(std::f32::consts::PI / -2.0)) * 10.0; // 90° rotation
-        let normal2 = normal.clone().rotate(Vec2::from_angle(std::f32::consts::PI));
+        let normal = tangent.rotate(Vec2::from_angle(std::f32::consts::PI / -2.0)) * 20.0; // 90° rotation
+        let normal2 = normal.rotate(Vec2::from_angle(std::f32::consts::PI));
 
-        normal_one.push(control_points[i] + normal); 
-        normal_two.push(control_points[i] + normal2);
+        normals.push((control_points[i] + normal, control_points[i] + normal2)); 
     }
 
-    (normal_one, normal_two)
+    normals
 }
 
 // -----------------------------------

@@ -3,18 +3,19 @@
 use crate::screens::Screen;
 use bevy::{
     gizmos::gizmos::Gizmos,
-    input::{ButtonState, mouse::MouseButtonInput},
+    input::{mouse::MouseButtonInput, ButtonState},
     math::{cubic_splines::*, vec2},
     prelude::*,
 };
-use serde::{Deserialize, Serialize};
 use std::fs;
 use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes::basic::GRAY;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
+use crate::racing::{ControlPoints, Curves, RaceTrack, TracksAsset, TrackPart};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(OnEnter(Screen::Editor), setup_editor)
+    app
+        .add_systems(OnEnter(Screen::Editor), setup_editor)
         .add_systems(
             Update,
             (
@@ -30,8 +31,6 @@ pub(super) fn plugin(app: &mut App) {
                 .run_if(in_state(Screen::Editor)),
         );
 }
-#[derive(Component)]
-pub struct TrackPart;
 
 pub fn setup_editor(mut commands: Commands) {
     // Initialize the modes with their defaults:
@@ -81,19 +80,6 @@ pub fn setup_editor(mut commands: Commands) {
 // -----------------------------------
 // Curve-related Resources and Systems
 // -----------------------------------
-
-/// The curve presently being displayed. This is optional because there may not be enough control
-/// points to actually generate a curve.
-#[derive(Clone, Default, Resource)]
-struct Curves(Option<CubicCurve<Vec2>>);
-
-/// The control points used to generate a curve. The tangent components are only used in the case of
-/// Hermite interpolation.
-#[derive(Clone, Resource)]
-struct ControlPoints {
-    pub points: Vec<Vec2>,
-    pub selected: Option<usize>,
-}
 
 /// This system is responsible for updating the [`Curves`] when the [control points] or active modes
 /// change.
@@ -423,10 +409,10 @@ fn handle_keypress(
 
     }
     if keyboard.just_pressed(KeyCode::KeyS) {
-        save_to_file(&control_points, "track.json");
+        save_to_file(&control_points, "assets/1.track.json");
     }
     if keyboard.just_pressed(KeyCode::KeyL) {
-       let race_track = load_from_file("track.json");
+       let race_track = load_from_file("assets/1.track.json");
         control_points.points = race_track.points;
     }
     if keyboard.just_pressed(KeyCode::ArrowLeft) {
@@ -458,7 +444,7 @@ fn handle_keypress(
 }
 
 fn save_to_file(data: &ControlPoints, path: &str) {
-    let race_track = RaceTrack {
+    let race_track=RaceTrack {
         track_name: "Test Track".to_string(),
         points: data.points.clone(),
     };
@@ -469,10 +455,4 @@ fn save_to_file(data: &ControlPoints, path: &str) {
 fn load_from_file(path: &str) -> RaceTrack {
     let contents = fs::read_to_string(path).unwrap();
     serde_json::from_str(&contents).unwrap()
-}
-
-#[derive(Debug, Clone, Component, Serialize, Deserialize)]
-pub struct RaceTrack {
-    pub track_name: String,
-    pub points: Vec<Vec2>,
 }

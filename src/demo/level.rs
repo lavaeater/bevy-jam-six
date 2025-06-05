@@ -8,10 +8,13 @@ use crate::{
     demo::player::{PlayerAssets, player},
     screens::Screen,
 };
+use crate::racing::{RaceTrack, TracksAsset, TracksAssetLoader};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<LevelAssets>();
     app.load_resource::<LevelAssets>();
+    app.init_asset::<TracksAsset>()
+        .init_asset_loader::<TracksAssetLoader>();
 }
 
 #[derive(Resource, Asset, Clone, Reflect)]
@@ -19,6 +22,8 @@ pub(super) fn plugin(app: &mut App) {
 pub struct LevelAssets {
     #[dependency]
     music: Handle<AudioSource>,
+    #[dependency]
+    track: Handle<TracksAsset>,
 }
 
 impl FromWorld for LevelAssets {
@@ -26,6 +31,7 @@ impl FromWorld for LevelAssets {
         let assets = world.resource::<AssetServer>();
         Self {
             music: assets.load("audio/music/Fluffing A Duck.ogg"),
+            track: assets.load("tracks/racing.tracks"),
         }
     }
 }
@@ -35,8 +41,14 @@ pub fn spawn_level(
     mut commands: Commands,
     level_assets: Res<LevelAssets>,
     player_assets: Res<PlayerAssets>,
+    track_assets: Res<Assets<TracksAsset>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
+    let track = track_assets.get(&level_assets.track).unwrap().tracks.first().unwrap();
+    
+        
+    
+    
     commands.spawn((
         Name::new("Level"),
         Transform::default(),
@@ -47,7 +59,8 @@ pub fn spawn_level(
             (
                 Name::new("Gameplay Music"),
                 music(level_assets.music.clone())
-            )
+            ),
+            
         ],
     ));
 }

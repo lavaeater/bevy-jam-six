@@ -362,12 +362,22 @@ fn handle_keypress(
     if keyboard.just_pressed(KeyCode::KeyR) {
         control_points.points.pop();
     }
+    if keyboard.just_pressed(KeyCode::KeyS) {
+        save_to_file(&control_points, "track.json");
+    }
+
+    if keyboard.just_pressed(KeyCode::KeyL) {
+       let race_track = load_from_file("track.json");
+        control_points.points = race_track.points;
+    }
 }
 
-fn save_map() {}
-
-fn save_to_file(data: &RaceTrack, path: &str) {
-    let json = serde_json::to_string_pretty(data).unwrap();
+fn save_to_file(data: &ControlPoints, path: &str) {
+    let race_track = RaceTrack {
+        track_name: "Test Track".to_string(),
+        points: data.points.clone(),
+    };
+    let json = serde_json::to_string_pretty(&race_track).unwrap();
     fs::write(path, json).unwrap();
 }
 
@@ -379,5 +389,5 @@ fn load_from_file(path: &str) -> RaceTrack {
 #[derive(Debug, Clone, Component, Serialize, Deserialize)]
 pub struct RaceTrack {
     pub track_name: String,
-    pub points_and_tangents: Vec<(Vec2, Vec2)>,
+    pub points: Vec<Vec2>,
 }

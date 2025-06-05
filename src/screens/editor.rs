@@ -20,8 +20,6 @@ pub(super) fn plugin(app: &mut App) {
                 handle_mouse_press,
                 draw_edit_move,
                 update_curve,
-                update_spline_mode_text,
-                update_cycling_mode_text,
                 draw_curve,
                 draw_control_points,
             )
@@ -32,11 +30,7 @@ pub(super) fn plugin(app: &mut App) {
 
 pub fn setup_editor(mut commands: Commands) {
     // Initialize the modes with their defaults:
-    let spline_mode = SplineMode::default();
-    commands.insert_resource(spline_mode);
-    let cycling_mode = CyclingMode::default();
-    commands.insert_resource(cycling_mode);
-
+    
     // Starting data for [`ControlPoints`]:
     let default_points = vec![
         vec2(-500., -200.),
@@ -44,19 +38,12 @@ pub fn setup_editor(mut commands: Commands) {
         vec2(250., 250.),
         vec2(500., -200.),
     ];
-
-    let default_tangents = vec![
-        vec2(0., 200.),
-        vec2(200., 0.),
-        vec2(0., -200.),
-        vec2(-200., 0.),
-    ];
-
+    
     let default_control_data = ControlPoints {
-        points_and_tangents: default_points.into_iter().zip(default_tangents).collect(),
+        points: default_points.into_iter().collect(),
     };
 
-    let curve = form_curve(&default_control_data, spline_mode, cycling_mode);
+    let curve = form_curve(&default_control_data);
     commands.insert_resource(curve);
     commands.insert_resource(default_control_data);
 
@@ -69,8 +56,6 @@ pub fn setup_editor(mut commands: Commands) {
         R: Remove the last control point\n\
         S: Cycle the spline construction being used\n\
         C: Toggle cyclic curve construction";
-    let spline_mode_text = format!("Spline: {spline_mode}");
-    let cycling_mode_text = format!("{cycling_mode}");
     let style = TextFont::default();
 
     commands
@@ -84,8 +69,6 @@ pub fn setup_editor(mut commands: Commands) {
         })
         .with_children(|parent| {
             parent.spawn((Text::new(instructions_text), style.clone()));
-            parent.spawn((SplineModeText, Text(spline_mode_text), style.clone()));
-            parent.spawn((CyclingModeText, Text(cycling_mode_text), style.clone()));
         });
 }
 
@@ -144,7 +127,7 @@ struct Curves {
 /// Hermite interpolation.
 #[derive(Clone, Resource)]
 struct ControlPoints {
-    points_and_tangents: Vec<(Vec2, Vec2)>,
+    pub points: Vec<Vec2>,
 }
 
 /// This system is responsible for updating the [`Curves`] when the [control points] or active modes
@@ -153,15 +136,13 @@ struct ControlPoints {
 /// [control points]: ControlPoints
 fn update_curve(
     control_points: Res<ControlPoints>,
-    spline_mode: Res<SplineMode>,
-    cycling_mode: Res<CyclingMode>,
     mut curve: ResMut<Curves>,
 ) {
-    if !control_points.is_changed() && !spline_mode.is_changed() && !cycling_mode.is_changed() {
+    if !control_points.is_changed() {
         return;
     }
 
-    *curve = form_curve(&control_points, *spline_mode, *cycling_mode);
+    *curve = form_curve(&control_points);
 }
 
 /// This system uses gizmos to draw the current [`Curves`] by breaking it up into a large number
@@ -185,15 +166,10 @@ fn draw_curve(curve: Res<Curves>, mut gizmos: Gizmos) {
 /// [control points]: ControlPoints
 fn draw_control_points(
     control_points: Res<ControlPoints>,
-    spline_mode: Res<SplineMode>,
     mut gizmos: Gizmos,
 ) {
-    for &(point, tangent) in &control_points.points_and_tangents {
+    for &point in &control_points.points {
         gizmos.circle_2d(point, 10.0, Color::srgb(0.0, 1.0, 0.0));
-
-        if matches!(*spline_mode, SplineMode::Hermite) {
-            gizmos.arrow_2d(point, point + tangent, Color::srgb(1.0, 0.0, 0.0));
-        }
     }
 }
 
@@ -201,89 +177,15 @@ fn draw_control_points(
 ///
 /// [control points]: ControlPoints
 fn form_curve(
-    control_points: &ControlPoints,
-    spline_mode: SplineMode,
-    cycling_mode: CyclingMode,
+    control_points: &ControlPoints
 ) -> Curves {
-    let (points, tangents): (Vec<_>, Vec<_>) =
-        control_points.points_and_tangents.iter().copied().unzip();
-
-    match spline_mode {
-        SplineMode::Hermite => {
-            let spline = CubicHermite::new(points, tangents);
-            Curves {
-                inner_curve: None,
-                center_curve: match cycling_mode {
-                    CyclingMode::NotCyclic => spline.to_curve().ok(),
-                    CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
-                },
-                outer_curve: None,
-            }
-        }
-        SplineMode::Cardinal => {
-            let spline = CubicCardinalSpline::new_catmull_rom(points);
-            Curves {
-                inner_curve: None,
-                center_curve: match cycling_mode {
-                    CyclingMode::NotCyclic => spline.to_curve().ok(),
-                    CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
-                },
-                outer_curve: None,
-            }
-        }
-        SplineMode::B => {
-            let spline = CubicBSpline::new(points);
-            Curves {
-                inner_curve: None,
-                center_curve: match cycling_mode {
-                    CyclingMode::NotCyclic => spline.to_curve().ok(),
-                    CyclingMode::Cyclic => spline.to_curve_cyclic().ok(),
-                },
-                outer_curve: None,
-            }
-        }
-    }
-}
-
-// --------------------
-// Text-related Components and Systems
-// --------------------
-
-/// Marker component for the text node that displays the current [`SplineMode`].
-#[derive(Component)]
-struct SplineModeText;
-
-/// Marker component for the text node that displays the current [`CyclingMode`].
-#[derive(Component)]
-struct CyclingModeText;
-
-fn update_spline_mode_text(
-    spline_mode: Res<SplineMode>,
-    mut spline_mode_text: Query<&mut Text, With<SplineModeText>>,
-) {
-    if !spline_mode.is_changed() {
-        return;
-    }
-
-    let new_text = format!("Spline: {}", *spline_mode);
-
-    for mut spline_mode_text in spline_mode_text.iter_mut() {
-        (**spline_mode_text).clone_from(&new_text);
-    }
-}
-
-fn update_cycling_mode_text(
-    cycling_mode: Res<CyclingMode>,
-    mut cycling_mode_text: Query<&mut Text, With<CyclingModeText>>,
-) {
-    if !cycling_mode.is_changed() {
-        return;
-    }
-
-    let new_text = format!("{}", *cycling_mode);
-
-    for mut cycling_mode_text in cycling_mode_text.iter_mut() {
-        (**cycling_mode_text).clone_from(&new_text);
+    let points =
+        control_points.points.iter().copied();
+    let spline = CubicCardinalSpline::new_catmull_rom(points);
+    Curves {
+        inner_curve: None,
+        center_curve: spline.to_curve_cyclic().ok(),
+        outer_curve: None,
     }
 }
 
@@ -355,14 +257,9 @@ fn handle_mouse_press(
                 let Ok(point) = camera.viewport_to_world_2d(camera_transform, start) else {
                     continue;
                 };
-                let Ok(end_point) = camera.viewport_to_world_2d(camera_transform, mouse_pos) else {
-                    continue;
-                };
-                let tangent = end_point - point;
-
                 // The start of the click-and-drag motion represents the point to add,
                 // while the difference with the current position represents the tangent.
-                control_points.points_and_tangents.push((point, tangent));
+                control_points.points.push(point);
 
                 // Reset the edit move since we've consumed it.
                 edit_move.start = None;
@@ -404,30 +301,11 @@ fn draw_edit_move(
 /// This system handles all keyboard commands.
 fn handle_keypress(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut spline_mode: ResMut<SplineMode>,
-    mut cycling_mode: ResMut<CyclingMode>,
     mut control_points: ResMut<ControlPoints>,
 ) {
-    // S => change spline mode
-    if keyboard.just_pressed(KeyCode::KeyS) {
-        *spline_mode = match *spline_mode {
-            SplineMode::Hermite => SplineMode::Cardinal,
-            SplineMode::Cardinal => SplineMode::B,
-            SplineMode::B => SplineMode::Hermite,
-        }
-    }
-
-    // C => change cycling mode
-    if keyboard.just_pressed(KeyCode::KeyC) {
-        *cycling_mode = match *cycling_mode {
-            CyclingMode::NotCyclic => CyclingMode::Cyclic,
-            CyclingMode::Cyclic => CyclingMode::NotCyclic,
-        }
-    }
-
     // R => remove last control point
     if keyboard.just_pressed(KeyCode::KeyR) {
-        control_points.points_and_tangents.pop();
+        control_points.points.pop();
     }
 }
 

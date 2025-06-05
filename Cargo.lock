@@ -545,6 +545,8 @@ dependencies = [
  "bevy_seedling",
  "bevy_yarnspinner",
  "log",
+ "serde",
+ "serde_json",
  "noiz",
  "rand 0.9.1",
  "tracing",

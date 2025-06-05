@@ -6,7 +6,7 @@ use bevy::{
     math::{cubic_splines::*, vec2},
     prelude::*
 };
-
+use bevy::render::view::screenshot::save_to_disk;
 use crate::{screens::Screen};
 
 pub(super) fn plugin(app: &mut App) {
@@ -412,4 +412,17 @@ fn handle_keypress(
     if keyboard.just_pressed(KeyCode::KeyR) {
         control_points.points_and_tangents.pop();
     }
+}
+
+fn save_map() {
+}
+
+fn save_to_file(data: &SaveData, path: &str) {
+    let json = serde_json::to_string_pretty(data).unwrap();
+    fs::write(path, json).unwrap();
+}
+
+fn load_from_file(path: &str) -> SaveData {
+    let contents = fs::read_to_string(path).unwrap();
+    serde_json::from_str(&contents).unwrap()
 }

@@ -54,6 +54,7 @@ pub fn setup_editor(mut commands: Commands) {
     // Mouse tracking information:
     commands.insert_resource(MousePosition::default());
     commands.insert_resource(MouseEditMove::default());
+    commands.insert_resource(MouseMoveMove::default());
 
     // The instructions and modes are rendered on the left-hand side in a column.
     let instructions_text = "Click and drag to add control points\n\
@@ -265,6 +266,11 @@ struct MouseEditMove {
     start: Option<Vec2>,
 }
 
+#[derive(Clone, Default, Resource)]
+struct MouseMoveMove {
+    start: Option<Vec2>,
+}
+
 /// The current mouse position, if known.
 #[derive(Clone, Default, Resource)]
 struct MousePosition(Option<Vec2>);
@@ -285,6 +291,7 @@ fn handle_mouse_press(
     mut button_events: EventReader<MouseButtonInput>,
     mouse_position: Res<MousePosition>,
     mut edit_move: ResMut<MouseEditMove>,
+    mut move_move: ResMut<MouseMoveMove>,
     mut control_points: ResMut<ControlPoints>,
     camera: Single<(&Camera, &GlobalTransform)>,
 ) {
@@ -294,39 +301,77 @@ fn handle_mouse_press(
 
     // Handle click and drag behavior
     for button_event in button_events.read() {
-        if button_event.button != MouseButton::Left {
-            continue;
-        }
+        match button_event.button {
+            MouseButton::Left => {
+                match button_event.state {
+                    ButtonState::Pressed => {
+                        if edit_move.start.is_some() {
+                            // If the edit move already has a start, press event should do nothing.
+                            continue;
+                        }
+                        // This press represents the start of the edit move.
+                        edit_move.start = Some(mouse_pos);
+                    }
 
-        match button_event.state {
-            ButtonState::Pressed => {
-                if edit_move.start.is_some() {
-                    // If the edit move already has a start, press event should do nothing.
+                    ButtonState::Released => {
+                        // Release is only meaningful if we started an edit move.
+                        let Some(start) = edit_move.start else {
+                            continue;
+                        };
+
+                        let (camera, camera_transform) = *camera;
+
+                        // Convert the starting point and end point (current mouse pos) into world coords:
+                        let Ok(point) = camera.viewport_to_world_2d(camera_transform, start) else {
+                            continue;
+                        };
+                        // The start of the click-and-drag motion represents the point to add,
+                        // while the difference with the current position represents the tangent.
+                        control_points.points.push(point);
+
+                        // Reset the edit move since we've consumed it.
+                        edit_move.start = None;
+                    }
+                }
+            },
+            MouseButton::Right => {
+                if control_points.selected.is_none() {
                     continue;
                 }
-                // This press represents the start of the edit move.
-                edit_move.start = Some(mouse_pos);
+                match button_event.state {
+                    ButtonState::Pressed => {
+                        if move_move.start.is_some() {
+                            // If the edit move already has a start, press event should do nothing.
+                            continue;
+                        }
+                        // This press represents the start of the edit move.
+                        move_move.start = Some(mouse_pos);
+                    }
+
+                    ButtonState::Released => {
+                        // Release is only meaningful if we started an edit move.
+                        let Some(start) = move_move.start else {
+                            continue;
+                        };
+
+                        let (camera, camera_transform) = *camera;
+
+                        // Convert the starting point and end point (current mouse pos) into world coords:
+                        let Ok(point) = camera.viewport_to_world_2d(camera_transform, start) else {
+                            continue;
+                        };
+                        // The start of the click-and-drag motion represents the point to add,
+                        // while the difference with the current position represents the tangent.
+                        let selected = control_points.selected.unwrap();
+                        let to_mutate = control_points.points.get_mut(selected).unwrap();
+                        *to_mutate = point;
+
+                        // Reset the edit move since we've consumed it.
+                        move_move.start = None;
+                    }
+                }
             }
-
-            ButtonState::Released => {
-                // Release is only meaningful if we started an edit move.
-                let Some(start) = edit_move.start else {
-                    continue;
-                };
-
-                let (camera, camera_transform) = *camera;
-
-                // Convert the starting point and end point (current mouse pos) into world coords:
-                let Ok(point) = camera.viewport_to_world_2d(camera_transform, start) else {
-                    continue;
-                };
-                // The start of the click-and-drag motion represents the point to add,
-                // while the difference with the current position represents the tangent.
-                control_points.points.push(point);
-
-                // Reset the edit move since we've consumed it.
-                edit_move.start = None;
-            }
+                _ => continue,
         }
     }
 }

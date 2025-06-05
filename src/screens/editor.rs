@@ -44,6 +44,7 @@ pub fn setup_editor(mut commands: Commands) {
     
     let default_control_data = ControlPoints {
         points: default_points.into_iter().collect(),
+        selected: None,
     };
 
     let curve = form_curve(&default_control_data);
@@ -55,10 +56,11 @@ pub fn setup_editor(mut commands: Commands) {
     commands.insert_resource(MouseEditMove::default());
 
     // The instructions and modes are rendered on the left-hand side in a column.
-    let instructions_text = "Click and drag to add control points and their tangents\n\
-        R: Remove the last control point\n\
-        S: Cycle the spline construction being used\n\
-        C: Toggle cyclic curve construction";
+    let instructions_text = "Click and drag to add control points\n\
+        R: Remove the selected control point\n\
+        Arrows: Change selected control point\n\
+        S: Save track.json\n\
+        L: Load track.json";
     let style = TextFont::default();
 
     commands
@@ -89,6 +91,7 @@ struct Curves(Option<CubicCurve<Vec2>>);
 #[derive(Clone, Resource)]
 struct ControlPoints {
     pub points: Vec<Vec2>,
+    pub selected: Option<usize>,
 }
 
 /// This system is responsible for updating the [`Curves`] when the [control points] or active modes
@@ -153,7 +156,7 @@ fn update_curve(
         let color = LinearRgba::from(GRAY);
         let colors = vertices.iter().map(|_| 
         [color.red, color.green, color.blue, color.alpha]
-        ).collect::<Vec<_>>();   ;
+        ).collect::<Vec<_>>();
         
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
@@ -197,8 +200,13 @@ fn draw_control_points(
     control_points: Res<ControlPoints>,
     mut gizmos: Gizmos,
 ) {
-    for &point in &control_points.points {
-        gizmos.circle_2d(point, 10.0, Color::srgb(0.0, 1.0, 0.0));
+    for (i, point) in control_points.points.iter().enumerate() { 
+        if Some(i) == control_points.selected {
+            gizmos.circle_2d(*point, 10.0, Color::srgb(1.0, 0.0, 0.0));
+           
+        } else {
+            gizmos.circle_2d(*point, 10.0, Color::srgb(0.0, 1.0, 0.0));
+        }
     }
 }
 
@@ -360,15 +368,47 @@ fn handle_keypress(
 ) {
     // R => remove last control point
     if keyboard.just_pressed(KeyCode::KeyR) {
-        control_points.points.pop();
+        if control_points.selected.is_some() {
+            let selected = control_points.selected.unwrap();
+            control_points.points.remove(selected);
+            control_points.selected = None;
+        } else {
+            control_points.points.pop();
+        }
+
     }
     if keyboard.just_pressed(KeyCode::KeyS) {
         save_to_file(&control_points, "track.json");
     }
-
     if keyboard.just_pressed(KeyCode::KeyL) {
        let race_track = load_from_file("track.json");
         control_points.points = race_track.points;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowLeft) {
+        if control_points.selected.is_none() {
+            control_points.selected = Some(0);
+        } else {
+            let mut current = control_points.selected.unwrap();
+            if current == 0 {
+                current = control_points.points.len() - 1;
+            } else {
+                current -= 1;
+            }
+            control_points.selected = Some(current);
+        }
+    }
+    if keyboard.just_pressed(KeyCode::ArrowRight) {
+        if control_points.selected.is_none() {
+            control_points.selected = Some(0);
+        } else {
+            let mut current = control_points.selected.unwrap();
+            if current >= control_points.points.len() - 1 {
+                current = 0;
+            } else {
+                current += 1;
+            }
+            control_points.selected = Some(current);
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 //! The screen state for the main gameplay.
 
+use std::fs;
 use bevy::{
     gizmos::gizmos::Gizmos,
     input::{ButtonState, mouse::MouseButtonInput},
@@ -7,6 +8,7 @@ use bevy::{
     prelude::*
 };
 use bevy::render::view::screenshot::save_to_disk;
+use serde::{Deserialize, Serialize};
 use crate::{screens::Screen};
 
 pub(super) fn plugin(app: &mut App) {
@@ -168,6 +170,7 @@ fn draw_curve(curve: Res<Curve>, mut gizmos: Gizmos) {
     };
     // Scale resolution with curve length so it doesn't degrade as the length increases.
     let resolution = 100 * curve.segments().len();
+    //Modify this to insert race track sections!
     gizmos.linestrip(
         curve.iter_positions(resolution).map(|pt| pt.extend(0.0)),
         Color::srgb(1.0, 1.0, 1.0),
@@ -417,12 +420,18 @@ fn handle_keypress(
 fn save_map() {
 }
 
-fn save_to_file(data: &SaveData, path: &str) {
+fn save_to_file(data: &RaceTrack, path: &str) {
     let json = serde_json::to_string_pretty(data).unwrap();
     fs::write(path, json).unwrap();
 }
 
-fn load_from_file(path: &str) -> SaveData {
+fn load_from_file(path: &str) -> RaceTrack {
     let contents = fs::read_to_string(path).unwrap();
     serde_json::from_str(&contents).unwrap()
+}
+
+#[derive(Debug, Clone, Component, Serialize, Deserialize)]
+pub struct RaceTrack {
+    pub track_name: String,
+    pub points_and_tangents: Vec<(Vec2, Vec2)>,
 }

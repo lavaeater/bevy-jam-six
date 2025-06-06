@@ -5,6 +5,7 @@ use bevy::image::{ImageLoaderSettings, ImageSampler};
 use bevy::prelude::{Asset, Component, CubicCurve, FromWorld, Reflect, Resource, World};
 use serde::{Deserialize, Serialize};
 use bevy::math::Vec2;
+use bevy::platform::collections::HashMap;
 use thiserror::Error;
 
 
@@ -32,7 +33,7 @@ pub struct RaceTrack {
 
 #[derive(Debug, Clone, Resource, Asset, Reflect, Deserialize, Default)]
 pub struct TracksAsset {
-    pub tracks: Vec<RaceTrack>,
+    pub tracks: HashMap<String, RaceTrack>,
 }
 
 #[derive(Default)]

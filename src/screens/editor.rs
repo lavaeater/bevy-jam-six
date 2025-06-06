@@ -161,7 +161,7 @@ fn update_curve(
                            TrackPart,
                            Mesh2d(meshes.add(mesh)),
                        MeshMaterial2d(materials.add(Color::from(GRAY)))
-                           ,)
+                           )
         );
 
     }

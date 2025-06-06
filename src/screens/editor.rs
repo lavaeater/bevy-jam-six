@@ -11,7 +11,7 @@ use std::fs;
 use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes::basic::GRAY;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
-use crate::racing::{ControlPoints, Curves, RaceTrack, TracksAsset, TrackPart};
+use crate::racing::{ControlPoints, Curves, TracksAsset, TrackPart};
 
 pub(super) fn plugin(app: &mut App) {
     app
@@ -45,7 +45,7 @@ pub fn setup_editor(mut commands: Commands) {
     let start_track = tracks_asset.get_next_track();
     let default_control_data = match start_track {
         Some(track) => ControlPoints {
-            points: track.points,
+            points: track.points.clone(),
             selected: None,
         },
         None => ControlPoints {
@@ -424,17 +424,18 @@ fn handle_keypress(
     }
 
     if keyboard.just_pressed(KeyCode::KeyN) {
-        let race_track = tracks_asset.new_track();
         save_to_file(&control_points, &mut tracks_asset, "assets/race.tracks");
+        tracks_asset.new_track();
+        control_points.points = tracks_asset.get_current_track().unwrap().points.clone();
     }
     
     if keyboard.just_pressed(KeyCode::ArrowUp) {
        let race_track = tracks_asset.get_next_track().unwrap();
-        control_points.points = race_track.points;
+        control_points.points = race_track.points.clone();
     }
     if keyboard.just_pressed(KeyCode::ArrowDown) {
         let race_track = tracks_asset.get_prev_track().unwrap();
-        control_points.points = race_track.points;
+        control_points.points = race_track.points.clone();
     }
     if keyboard.just_pressed(KeyCode::ArrowLeft) {
         if control_points.selected.is_none() {

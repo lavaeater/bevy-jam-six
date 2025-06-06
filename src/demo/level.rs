@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use crate::racing::{RaceTrack, TracksAsset, TracksAssetLoader};
+use crate::racing::{ TracksAsset, TracksAssetLoader};
 use crate::{
     asset_tracking::LoadResource,
     audio::music,
@@ -41,16 +41,11 @@ pub fn spawn_level(
     mut commands: Commands,
     level_assets: Res<LevelAssets>,
     player_assets: Res<PlayerAssets>,
-    track_assets: Res<Assets<TracksAsset>>,
+    mut track_assets: ResMut<Assets<TracksAsset>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    let track = track_assets
-        .get(&level_assets.track)
-        .unwrap()
-        .tracks
-        .values()
-        .next()
-        .unwrap();
+    let tracks = track_assets.get_mut(&level_assets.track).unwrap();
+    let first_track = tracks.get_next_track().unwrap();
 
     commands.spawn((
         Name::new("Level"),

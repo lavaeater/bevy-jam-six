@@ -2,19 +2,19 @@
 
 use bevy::prelude::*;
 
+use crate::racing::{RaceTrack, TracksAsset, TracksAssetLoader};
 use crate::{
     asset_tracking::LoadResource,
     audio::music,
     demo::player::{PlayerAssets, player},
     screens::Screen,
 };
-use crate::racing::{RaceTrack, TracksAsset, TracksAssetLoader};
 
 pub(super) fn plugin(app: &mut App) {
-    app.register_type::<LevelAssets>();
-    app.load_resource::<LevelAssets>();
     app.init_asset::<TracksAsset>()
-        .init_asset_loader::<TracksAssetLoader>();
+        .init_asset_loader::<TracksAssetLoader>()
+        .register_type::<LevelAssets>()
+        .load_resource::<LevelAssets>();
 }
 
 #[derive(Resource, Asset, Clone, Reflect)]
@@ -44,8 +44,14 @@ pub fn spawn_level(
     track_assets: Res<Assets<TracksAsset>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    let track = track_assets.get(&level_assets.track).unwrap().tracks.values().next().unwrap();
-    
+    let track = track_assets
+        .get(&level_assets.track)
+        .unwrap()
+        .tracks
+        .values()
+        .next()
+        .unwrap();
+
     commands.spawn((
         Name::new("Level"),
         Transform::default(),
@@ -57,7 +63,6 @@ pub fn spawn_level(
                 Name::new("Gameplay Music"),
                 music(level_assets.music.clone())
             ),
-            
         ],
     ));
 }

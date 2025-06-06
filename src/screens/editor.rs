@@ -41,20 +41,27 @@ pub fn setup_editor(mut commands: Commands) {
         vec2(-500., -150.)
     ];
     
-    let default_control_data = ControlPoints {
-        points: default_points.into_iter().collect(),
-        selected: None,
+    let mut tracks_asset = load_from_file("assets/race.tracks");
+    let start_track = tracks_asset.get_next_track();
+    let default_control_data = match start_track {
+        Some(track) => ControlPoints {
+            points: track.points,
+            selected: None,
+        },
+        None => ControlPoints {
+            points: default_points,
+            selected: None,
+        },
     };
-
     let curve = form_curve(&default_control_data);
     commands.insert_resource(curve);
     commands.insert_resource(default_control_data);
-    commands.insert_resource(TracksAsset::default());
-
+    commands.insert_resource(tracks_asset);
     // Mouse tracking information:
     commands.insert_resource(MousePosition::default());
     commands.insert_resource(MouseEditMove::default());
     commands.insert_resource(MouseMoveMove::default());
+    
 
     // The instructions and modes are rendered on the left-hand side in a column.
     let instructions_text = "Click and drag to add control points\n\
@@ -399,6 +406,7 @@ fn draw_edit_move(
 fn handle_keypress(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut control_points: ResMut<ControlPoints>,
+    mut tracks_asset: ResMut<TracksAsset>
 ) {
     // R => remove last control point
     if keyboard.just_pressed(KeyCode::KeyR) {
@@ -412,10 +420,20 @@ fn handle_keypress(
 
     }
     if keyboard.just_pressed(KeyCode::KeyS) {
-        save_to_file(&control_points, "assets/1.track.json");
+        save_to_file(&control_points, &mut tracks_asset, "assets/race.tracks");
     }
-    if keyboard.just_pressed(KeyCode::KeyL) {
-       let race_track = load_from_file("assets/1.track.json");
+
+    if keyboard.just_pressed(KeyCode::KeyN) {
+        let race_track = tracks_asset.new_track();
+        save_to_file(&control_points, &mut tracks_asset, "assets/race.tracks");
+    }
+    
+    if keyboard.just_pressed(KeyCode::ArrowUp) {
+       let race_track = tracks_asset.get_next_track().unwrap();
+        control_points.points = race_track.points;
+    }
+    if keyboard.just_pressed(KeyCode::ArrowDown) {
+        let race_track = tracks_asset.get_prev_track().unwrap();
         control_points.points = race_track.points;
     }
     if keyboard.just_pressed(KeyCode::ArrowLeft) {
@@ -446,16 +464,20 @@ fn handle_keypress(
     }
 }
 
-fn save_to_file(data: &ControlPoints, path: &str) {
-    let race_track=RaceTrack {
-        track_name: "Test Track".to_string(),
-        points: data.points.clone(),
-    };
-    let json = serde_json::to_string_pretty(&race_track).unwrap();
+fn save_to_file(data: &ControlPoints, tracks_asset: &mut TracksAsset, path: &str) {
+    tracks_asset.update_current_track(data.points.clone());
+    let json = serde_json::to_string_pretty(&tracks_asset).unwrap();
     fs::write(path, json).unwrap();
 }
 
-fn load_from_file(path: &str) -> RaceTrack {
-    let contents = fs::read_to_string(path).unwrap();
-    serde_json::from_str(&contents).unwrap()
+fn load_from_file(path: &str) -> TracksAsset {
+    match fs::read_to_string(path) {
+        Ok(contents) => {
+            serde_json::from_str(&contents).unwrap()
+        }
+        Err(err) => {
+            println!("Error reading file: {}", err);
+            TracksAsset::default()
+        }
+    }
 }

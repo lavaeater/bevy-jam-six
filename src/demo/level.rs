@@ -44,10 +44,7 @@ pub fn spawn_level(
     track_assets: Res<Assets<TracksAsset>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    let track = track_assets.get(&level_assets.track).unwrap().tracks.first().unwrap();
-    
-        
-    
+    let track = track_assets.get(&level_assets.track).unwrap().tracks.values().next().unwrap();
     
     commands.spawn((
         Name::new("Level"),

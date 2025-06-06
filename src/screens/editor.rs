@@ -49,6 +49,7 @@ pub fn setup_editor(mut commands: Commands) {
     let curve = form_curve(&default_control_data);
     commands.insert_resource(curve);
     commands.insert_resource(default_control_data);
+    commands.insert_resource(TracksAsset::default());
 
     // Mouse tracking information:
     commands.insert_resource(MousePosition::default());
@@ -58,9 +59,11 @@ pub fn setup_editor(mut commands: Commands) {
     // The instructions and modes are rendered on the left-hand side in a column.
     let instructions_text = "Click and drag to add control points\n\
         R: Remove the selected control point\n\
-        Arrows: Change selected control point\n\
-        S: Save track.json\n\
-        L: Load track.json";
+        Left-Right-Arrows: Change selected control point\n\
+        Up-Down-Arrows: Change current track\n\
+        N: New Track\n\
+        S: Save racing.tracks\n\
+        L: Load racing.tracks";
     let style = TextFont::default();
 
     commands

@@ -1,13 +1,15 @@
-use bevy::asset::{AssetLoader, AssetServer, Handle, LoadContext};
 use bevy::asset::io::Reader;
+use bevy::asset::{AssetLoader, AssetServer, Handle, LoadContext};
 use bevy::audio::AudioSource;
 use bevy::image::{ImageLoaderSettings, ImageSampler};
-use bevy::prelude::{Asset, Component, CubicCurve, FromWorld, Reflect, Resource, World};
-use serde::{Deserialize, Serialize};
-use bevy::math::{vec2, Vec2};
+use bevy::math::{Vec2, vec2};
 use bevy::platform::collections::HashMap;
+use bevy::prelude::{
+    Asset, Component, CubicCardinalSpline, CubicCurve, CyclicCubicGenerator, FromWorld, Reflect,
+    Resource, World,
+};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
 
 #[derive(Component)]
 pub struct TrackPart;
@@ -31,14 +33,46 @@ pub struct RaceTrack {
     pub points: Vec<Vec2>,
 }
 
+impl RaceTrack {
+    pub fn form_curve(&self) -> Curves {
+        let points = self.points.iter().copied();
+        let spline = CubicCardinalSpline::new_catmull_rom(points);
+
+        Curves(spline.to_curve_cyclic().ok())
+    }
+
+    pub fn get_bounds(&self) -> Vec<(Vec2, Vec2)> {
+        let mut normals = Vec::new();
+        let tension = 0.5;
+
+        for i in 0..self.points.len() {
+            let tangent = if i == 0 {
+                // Forward difference at start
+                (self.points[i + 1] - self.points[i]) * tension * 2.0
+            } else if i == self.points.len() - 1 {
+                // Backward difference at end
+                (self.points[i] - self.points[i - 1]) * tension * 2.0
+            } else {
+                // Central difference for internal points
+                (self.points[i + 1] - self.points[i - 1]) * tension
+            };
+
+            let tangent = tangent.normalize_or_zero();
+
+            let normal = tangent.rotate(Vec2::from_angle(std::f32::consts::PI / -2.0)) * 20.0; // 90° rotation
+            let normal2 = normal.rotate(Vec2::from_angle(std::f32::consts::PI));
+
+            normals.push((self.points[i] + normal, self.points[i] + normal2));
+        }
+        normals
+    }
+}
+
 impl Default for RaceTrack {
     fn default() -> Self {
         Self {
             track_name: String::new(),
-            points: vec![
-                vec2(-500., -200.),
-                vec2(-500., -150.)
-            ],
+            points: vec![vec2(-500., -200.), vec2(-500., -150.)],
         }
     }
 }
@@ -65,10 +99,7 @@ impl TracksAsset {
         let name = format!("Track {}", self.tracks.len() + 1);
         let track = RaceTrack {
             track_name: name,
-            points: vec![
-                vec2(-500., -200.),
-                vec2(-500., -150.)
-            ],
+            points: vec![vec2(-500., -200.), vec2(-500., -150.)],
         };
         self.store_track(track);
     }
@@ -97,14 +128,14 @@ impl TracksAsset {
     pub fn get_current_track_mut(&mut self) -> Option<&mut RaceTrack> {
         match self.current_track_index {
             None => None,
-            Some(index) => self.tracks.get_mut(index)
+            Some(index) => self.tracks.get_mut(index),
         }
     }
 
     pub fn get_current_track(&self) -> Option<&RaceTrack> {
         match self.current_track_index {
             None => None,
-            Some(index) => self.tracks.get(index)
+            Some(index) => self.tracks.get(index),
         }
     }
 
@@ -146,38 +177,38 @@ impl TracksAsset {
 }
 
 #[derive(Default)]
-    pub struct TracksAssetLoader;
+pub struct TracksAssetLoader;
 
-    #[non_exhaustive]
-    #[derive(Debug, Error)]
-    pub enum TracksAssetLoaderError {
-        /// An [IO](std::io) Error
-        #[error("Could not load asset: {0}")]
-        Io(#[from] std::io::Error),
-        /// A [JSON](json) Error
-        #[error("Could not parse JSON: {0}")]
-        JsonError(#[from] serde_json::Error),
+#[non_exhaustive]
+#[derive(Debug, Error)]
+pub enum TracksAssetLoaderError {
+    /// An [IO](std::io) Error
+    #[error("Could not load asset: {0}")]
+    Io(#[from] std::io::Error),
+    /// A [JSON](json) Error
+    #[error("Could not parse JSON: {0}")]
+    JsonError(#[from] serde_json::Error),
+}
+
+impl AssetLoader for TracksAssetLoader {
+    type Asset = TracksAsset;
+    type Settings = ();
+    type Error = TracksAssetLoaderError;
+
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        _settings: &(),
+        _load_context: &mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let custom_asset = serde_json::from_slice(&bytes).unwrap_or_default();
+
+        Ok(custom_asset)
     }
 
-    impl AssetLoader for TracksAssetLoader {
-        type Asset = TracksAsset;
-        type Settings = ();
-        type Error = TracksAssetLoaderError;
-
-        async fn load(
-            &self,
-            reader: &mut dyn Reader,
-            _settings: &(),
-            _load_context: &mut LoadContext<'_>,
-        ) -> Result<Self::Asset, Self::Error> {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
-            let custom_asset = serde_json::from_slice(&bytes).unwrap_or_default();
-
-            Ok(custom_asset)
-        }
-
-        fn extensions(&self) -> &[&str] {
-            &["tracks"]
-        }
+    fn extensions(&self) -> &[&str] {
+        &["tracks"]
     }
+}

@@ -4,7 +4,7 @@ use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
 };
-use bevy_enhanced_input::prelude::Actions;
+use bevy_enhanced_input::prelude::{ActionState, Actions};
 use KeyCode::*;
 use crate::{
     AppSystems, PausableSystems,
@@ -46,17 +46,19 @@ pub fn player(
     /*
     Controls, bitch
      */
-    let mut actions = Actions::<Racing>::default();
+    let mut racing_actions = Actions::<Racing>::default();
     // The action will trigger when space or gamepad south button is pressed.
-    actions.bind::<Forward>().to(KeyW);//, GamepadButton::RightTrigger2));
-    actions.bind::<Reverse>().to(KeyS);//, GamepadButton::LeftTrigger2));
-    actions.bind::<Left>().to(KeyA);//, GamepadAxis::LeftStickX));
-    actions.bind::<Right>().to(KeyD);//, GamepadAxis::LeftStickX));
-    actions.bind::<Fire>().to(Space);//, GamepadButton::South));
+    racing_actions.bind::<Forward>().to(KeyW);//, GamepadButton::RightTrigger2));
+    racing_actions.bind::<Reverse>().to(KeyS);//, GamepadButton::LeftTrigger2));
+    racing_actions.bind::<Left>().to(KeyA);//, GamepadAxis::LeftStickX));
+    racing_actions.bind::<Right>().to(KeyD);//, GamepadAxis::LeftStickX));
+    let mut shooting_actions = Actions::<Shooting>::default();
+    shooting_actions.bind::<Fire>().to(Space);//, GamepadButton::South));
     
     (
         Name::new("Player"),
-        actions,
+        racing_actions,
+        shooting_actions,
         Player,
         Sprite {
             image: player_assets.ducky.clone(),
@@ -136,5 +138,13 @@ impl FromWorld for PlayerAssets {
                 assets.load("audio/sound_effects/step4.ogg"),
             ],
         }
+    }
+}
+
+// Apply movemenet when `Move` action considered fired.
+fn system(players: Single<(&Actions<Racing>, &mut Transform)>) -> Result<()> {
+    let (actions, mut transform) = players.into_inner();
+    if actions.state::<Forward>()? == ActionState::Ongoing {
+        // Apply logic...
     }
 }

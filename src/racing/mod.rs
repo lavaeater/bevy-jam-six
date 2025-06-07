@@ -243,5 +243,8 @@ pub struct Right;
 #[derive(Debug, InputAction)]
 #[input_action(output = bool)]
 pub struct Fire;
+
 #[derive(InputContext)]
 pub struct Racing;
+#[derive(InputContext)]
+pub struct Shooting;

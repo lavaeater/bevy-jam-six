@@ -1,5 +1,7 @@
 //! Player-specific behavior.
 
+use avian2d::prelude::{CoefficientCombine, Collider, ColliderDensity, Friction, Restitution};
+use bevy_enhanced_input::prelude::{Fired, Ongoing};
 use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
@@ -23,12 +25,15 @@ pub(super) fn plugin(app: &mut App) {
     app.load_resource::<PlayerAssets>();
 
     // Record directional input as movement controls.
-    app.add_systems(
-        Update,
-        record_player_directional_input
-            .in_set(AppSystems::RecordInput)
-            .in_set(PausableSystems),
-    );
+    app
+    //     .add_systems(
+    //     Update,
+    //     record_player_directional_input
+    //         .in_set(AppSystems::RecordInput)
+    //         .in_set(PausableSystems),
+    // )
+        .add_observer(accelerate)
+    ;
 }
 
 /// The player character.
@@ -68,12 +73,16 @@ pub fn player(
             }),
             ..default()
         },
+        Collider::capsule(12.5, 20.0),
+        Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
+        Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
+        ColliderDensity(2.0),
         Transform::from_scale(Vec2::splat(8.0).extend(1.0)),
-        MovementController {
-            max_speed,
-            ..default()
-        },
-        ScreenWrap,
+        // MovementController {
+        //     max_speed,
+        //     ..default()
+        // },
+        // ScreenWrap,
         player_animation,
     )
 }
@@ -142,9 +151,17 @@ impl FromWorld for PlayerAssets {
 }
 
 // Apply movemenet when `Move` action considered fired.
-fn system(players: Single<(&Actions<Racing>, &mut Transform)>) -> Result<()> {
-    let (actions, mut transform) = players.into_inner();
-    if actions.state::<Forward>()? == ActionState::Ongoing {
-        // Apply logic...
-    }
+fn accelerate(trigger: Trigger<Ongoing<Forward>>, mut transforms: Query<&mut Transform, With<Player>>) {
+    let mut transform = transforms.get_mut(trigger.target()).unwrap();
+
+    // Move to the camera direction.
+    let rotation = transform.rotation;
+
+    // Movement consists of X and -Z components, so swap Y and Z with negation.
+    // We could do it with modifiers, but it wold be weird for an action to return
+    // a `Vec3` like this, so we doing it inside the function.
+    let mut movement = trigger.value.extend(0.0).xzy();
+    movement.z = -movement.z;
+
+    transform.translation += rotation * movement
 }

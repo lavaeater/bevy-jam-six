@@ -156,12 +156,4 @@ fn accelerate(trigger: Trigger<Ongoing<Forward>>, mut transforms: Query<&mut Tra
 
     // Move to the camera direction.
     let rotation = transform.rotation;
-
-    // Movement consists of X and -Z components, so swap Y and Z with negation.
-    // We could do it with modifiers, but it wold be weird for an action to return
-    // a `Vec3` like this, so we doing it inside the function.
-    let mut movement = trigger.value.extend(0.0).xzy();
-    movement.z = -movement.z;
-
-    transform.translation += rotation * movement
 }

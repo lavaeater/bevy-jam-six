@@ -1,3 +1,4 @@
+use avian2d::prelude::PhysicsLayer;
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, AssetServer, Handle, LoadContext};
 use bevy::audio::AudioSource;
@@ -237,3 +238,12 @@ pub struct Fire;
 pub struct Racing;
 #[derive(InputContext)]
 pub struct Shooting;
+
+#[derive(PhysicsLayer, Default)]
+pub enum GameLayer {
+    #[default]
+    Default, // Layer 0 - the default layer that objects are assigned to
+    Player,  // Layer 1
+    Track,   // Layer 2
+    Obstacle,  // Layer 3
+}

@@ -8,7 +8,7 @@ use crate::{
     screens::Screen,
 };
 use avian2d::PhysicsPlugins;
-use avian2d::prelude::{Collider, Gravity, PhysicsDebugPlugin, RigidBody};
+use avian2d::prelude::{Collider, Gravity, PhysicsDebugPlugin, RigidBody, Sensor};
 use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes::basic::GRAY;
 use bevy::prelude::*;
@@ -154,6 +154,7 @@ pub fn instantiate_track(
             TrackPart,
             RigidBody::Static,
             Collider::convex_hull(vec![*p0, *p2, *p3, *p1]).unwrap(),
+            Sensor,
             Mesh2d(meshes.add(mesh)),
             MeshMaterial2d(materials.add(Color::from(GRAY))),
         ));

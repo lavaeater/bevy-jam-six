@@ -2,7 +2,7 @@
 
 use crate::ReflectComponent;
 use crate::ReflectResource;
-use crate::racing::{Fire, Move, Racing, Shooting};
+use crate::racing::{Fire, GameLayer, Move, Racing, Shooting};
 use crate::{
     PausableSystems,
     asset_tracking::LoadResource,
@@ -12,7 +12,7 @@ use crate::{
     },
     racing,
 };
-use avian2d::prelude::{CoefficientCombine, Collider, ColliderDensity, ExternalForce, ExternalTorque, Friction, MaxLinearSpeed, Restitution, RigidBody};
+use avian2d::prelude::{AngularDamping, Collider, ColliderDensity, CollisionLayers, ExternalForce, ExternalTorque, Friction, MaxAngularSpeed, MaxLinearSpeed, Restitution, RigidBody};
 use bevy::prelude::KeyCode::*;
 use bevy::prelude::{Name, Query, Trigger, Vec2, With};
 use bevy::{
@@ -69,6 +69,9 @@ pub fn player(
         //     }),
         //     ..default()
         // },
+        // CollisionLayers::new(
+        //     GameLayer::Player,
+        // [GameLayer::Default, GameLayer::Obstacle]),
         RigidBody::Dynamic,
         Collider::rectangle(2.0, 3.5),
         ExternalForce::default(),
@@ -76,7 +79,8 @@ pub fn player(
         Transform::from_scale(Vec2::splat(8.0).extend(1.0)),
         ColliderDensity(0.1),
         MaxLinearSpeed(max_speed),
-        // player_animation,
+        MaxAngularSpeed(50.),
+        AngularDamping(0.5),
     )
 }
 
@@ -120,9 +124,9 @@ fn apply_steering(
     mut player_query: Query<(&mut ExternalForce, &mut ExternalTorque, &Transform), With<Player>>,
 ) {
     if let Ok((mut ext_force, mut ext_torque, transform)) = player_query.get_mut(trigger.target()) {
-        let direction = Vec2::new(transform.up().x, transform.up().y);
+        let direction = Vec2::new(transform.right().x, transform.right().y);
 
-        let v = trigger.value.with_x(0.0);
+        let v = trigger.value;
 
         let v = direction.rotate(v);
         
@@ -130,7 +134,7 @@ fn apply_steering(
             .apply_force(v * 500.0)
             .with_persistence(false);
         
-        ext_torque.apply_torque(v.x * 100.0)
-            .with_persistence(false);
+        // ext_torque.apply_torque(-trigger.value.x * 100.0)
+        //     .with_persistence(false);
     }
 }

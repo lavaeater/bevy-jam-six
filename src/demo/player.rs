@@ -4,7 +4,8 @@ use bevy::{
     image::{ImageLoaderSettings, ImageSampler},
     prelude::*,
 };
-
+use bevy_enhanced_input::prelude::Actions;
+use KeyCode::*;
 use crate::{
     AppSystems, PausableSystems,
     asset_tracking::LoadResource,
@@ -13,6 +14,7 @@ use crate::{
         movement::{MovementController, ScreenWrap},
     },
 };
+use crate::racing::*;
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
@@ -40,9 +42,21 @@ pub fn player(
     let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 6, 2, Some(UVec2::splat(1)), None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
     let player_animation = PlayerAnimation::new();
-
+    
+    /*
+    Controls, bitch
+     */
+    let mut actions = Actions::<Racing>::default();
+    // The action will trigger when space or gamepad south button is pressed.
+    actions.bind::<Forward>().to(KeyW);//, GamepadButton::RightTrigger2));
+    actions.bind::<Reverse>().to(KeyS);//, GamepadButton::LeftTrigger2));
+    actions.bind::<Left>().to(KeyA);//, GamepadAxis::LeftStickX));
+    actions.bind::<Right>().to(KeyD);//, GamepadAxis::LeftStickX));
+    actions.bind::<Fire>().to(Space);//, GamepadButton::South));
+    
     (
         Name::new("Player"),
+        actions,
         Player,
         Sprite {
             image: player_assets.ducky.clone(),
@@ -72,7 +86,7 @@ fn record_player_directional_input(
 ) {
     // Collect directional input.
     let mut intent = Vec2::ZERO;
-    if input.pressed(KeyCode::KeyW) || input.pressed(KeyCode::ArrowUp) {
+    if input.pressed(KeyW) || input.pressed(KeyCode::ArrowUp) {
         intent.y += 1.0;
     }
     if input.pressed(KeyCode::KeyS) || input.pressed(KeyCode::ArrowDown) {

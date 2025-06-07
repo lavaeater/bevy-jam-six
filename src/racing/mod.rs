@@ -8,6 +8,7 @@ use bevy::prelude::{
     Asset, Component, CubicCardinalSpline, CubicCurve, CyclicCubicGenerator, FromWorld, Reflect,
     Resource, World,
 };
+use bevy_enhanced_input::prelude::{InputAction, InputContext};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -221,3 +222,26 @@ impl AssetLoader for TracksAssetLoader {
         &["tracks"]
     }
 }
+
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct Forward;
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct Reverse;
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct Left;
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct Right;
+
+#[derive(Debug, InputAction)]
+#[input_action(output = bool)]
+pub struct Fire;
+#[derive(InputContext)]
+pub struct Racing;

@@ -1,6 +1,6 @@
 //! Spawn the main level.
 
-use crate::racing::{ControlPoints, CurrentTrack, Curves, RaceTrack, TrackPart, TracksAsset, TracksAssetLoader};
+use crate::racing::{ControlPoints, CurrentTrack, Curves, RaceTrack, Racing, TrackPart, TracksAsset, TracksAssetLoader};
 use crate::{
     asset_tracking::LoadResource,
     audio::music,
@@ -13,9 +13,12 @@ use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes::basic::GRAY;
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
+use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy_enhanced_input::prelude::{InputContext, InputContextAppExt};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default()))
+    app.add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default(),EnhancedInputPlugin))
+        .add_input_context::<Racing>()
         .insert_resource(Gravity::ZERO)
         .init_resource::<CurrentTrack>()
         .init_asset::<TracksAsset>()

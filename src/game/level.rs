@@ -4,7 +4,7 @@ use crate::racing::{ControlPoints, CurrentTrack, Curves, RaceTrack, Racing, Shoo
 use crate::{
     asset_tracking::LoadResource,
     audio::music,
-    demo::player::{PlayerAssets, player},
+    game::player::{PlayerAssets, player},
     screens::Screen,
 };
 use avian2d::PhysicsPlugins;
@@ -17,7 +17,10 @@ use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_enhanced_input::prelude::{InputContext, InputContextAppExt};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin::default(),EnhancedInputPlugin))
+    app.add_plugins((
+        PhysicsPlugins::default(), 
+        PhysicsDebugPlugin::default(),
+                     EnhancedInputPlugin))
         .add_input_context::<Racing>()
         .add_input_context::<Shooting>()
         .insert_resource(Gravity::ZERO)

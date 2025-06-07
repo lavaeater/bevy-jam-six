@@ -1,22 +1,28 @@
 //! Player-specific behavior.
 
-use avian2d::prelude::{CoefficientCombine, Collider, ColliderDensity, Friction, Restitution};
-use bevy_enhanced_input::prelude::{Fired, Ongoing};
-use bevy::{
-    image::{ImageLoaderSettings, ImageSampler},
-    prelude::*,
-};
-use bevy_enhanced_input::prelude::{ActionState, Actions};
-use KeyCode::*;
+use crate::ReflectComponent;
+use crate::ReflectResource;
+use crate::racing::{Fire, Move, Racing, Shooting};
 use crate::{
-    AppSystems, PausableSystems,
+    PausableSystems,
     asset_tracking::LoadResource,
-    demo::{
+    game::{
         animation::PlayerAnimation,
         movement::{MovementController, ScreenWrap},
     },
+    racing,
 };
-use crate::racing::*;
+use avian2d::prelude::{CoefficientCombine, Collider, ColliderDensity, ExternalForce, ExternalTorque, Friction, Restitution, RigidBody};
+use bevy::prelude::KeyCode::*;
+use bevy::prelude::{Name, Query, Trigger, Vec2, With};
+use bevy::{
+    image::{ImageLoaderSettings, ImageSampler},
+    prelude::{
+        App, Asset, AssetServer, Assets, AudioSource, Bundle, Component, FromWorld, Handle, Image,
+        Reflect, Resource, TextureAtlasLayout, Transform, UVec2, World,
+    },
+};
+use bevy_enhanced_input::prelude::{Actions, Cardinal, Fired};
 
 pub(super) fn plugin(app: &mut App) {
     app.register_type::<Player>();
@@ -25,15 +31,7 @@ pub(super) fn plugin(app: &mut App) {
     app.load_resource::<PlayerAssets>();
 
     // Record directional input as movement controls.
-    app
-    //     .add_systems(
-    //     Update,
-    //     record_player_directional_input
-    //         .in_set(AppSystems::RecordInput)
-    //         .in_set(PausableSystems),
-    // )
-        .add_observer(accelerate)
-    ;
+    app.add_observer(apply_steering);
 }
 
 /// The player character.
@@ -47,19 +45,17 @@ pub fn player(
     let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 6, 2, Some(UVec2::splat(1)), None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
     let player_animation = PlayerAnimation::new();
-    
+
     /*
     Controls, bitch
      */
     let mut racing_actions = Actions::<Racing>::default();
-    // The action will trigger when space or gamepad south button is pressed.
-    racing_actions.bind::<Forward>().to(KeyW);//, GamepadButton::RightTrigger2));
-    racing_actions.bind::<Reverse>().to(KeyS);//, GamepadButton::LeftTrigger2));
-    racing_actions.bind::<Left>().to(KeyA);//, GamepadAxis::LeftStickX));
-    racing_actions.bind::<Right>().to(KeyD);//, GamepadAxis::LeftStickX));
+    racing_actions
+        .bind::<racing::Move>()
+        .to((Cardinal::wasd_keys()));
     let mut shooting_actions = Actions::<Shooting>::default();
-    shooting_actions.bind::<Fire>().to(Space);//, GamepadButton::South));
-    
+    shooting_actions.bind::<Fire>().to(Space); //, GamepadButton::South));
+
     (
         Name::new("Player"),
         racing_actions,
@@ -73,11 +69,11 @@ pub fn player(
         //     }),
         //     ..default()
         // },
-        Collider::rectangle(2.0, 5.0),
-        Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
-        Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
-        ColliderDensity(2.0),
+        RigidBody::Dynamic,
+        Collider::rectangle(2.0, 3.5),
+        ExternalForce::default(),
         Transform::from_scale(Vec2::splat(8.0).extend(1.0)),
+        ColliderDensity(0.1),
         // player_animation,
     )
 }
@@ -85,35 +81,6 @@ pub fn player(
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[reflect(Component)]
 struct Player;
-
-fn record_player_directional_input(
-    input: Res<ButtonInput<KeyCode>>,
-    mut controller_query: Query<&mut MovementController, With<Player>>,
-) {
-    // Collect directional input.
-    let mut intent = Vec2::ZERO;
-    if input.pressed(KeyW) || input.pressed(KeyCode::ArrowUp) {
-        intent.y += 1.0;
-    }
-    if input.pressed(KeyCode::KeyS) || input.pressed(KeyCode::ArrowDown) {
-        intent.y -= 1.0;
-    }
-    if input.pressed(KeyCode::KeyA) || input.pressed(KeyCode::ArrowLeft) {
-        intent.x -= 1.0;
-    }
-    if input.pressed(KeyCode::KeyD) || input.pressed(KeyCode::ArrowRight) {
-        intent.x += 1.0;
-    }
-
-    // Normalize intent so that diagonal movement is the same speed as horizontal / vertical.
-    // This should be omitted if the input comes from an analog stick instead.
-    let intent = intent.normalize_or_zero();
-
-    // Apply movement intent to controllers.
-    for mut controller in &mut controller_query {
-        controller.intent = intent;
-    }
-}
 
 #[derive(Resource, Asset, Clone, Reflect)]
 #[reflect(Resource)]
@@ -146,9 +113,17 @@ impl FromWorld for PlayerAssets {
 }
 
 // Apply movemenet when `Move` action considered fired.
-fn accelerate(trigger: Trigger<Ongoing<Forward>>, mut transforms: Query<&mut Transform, With<Player>>) {
-    let mut transform = transforms.get_mut(trigger.target()).unwrap();
+fn apply_steering(
+    trigger: Trigger<Fired<Move>>,
+    mut player_query: Query<(&mut ExternalForce, &Transform), With<Player>>,
+) {
+    if let Ok((mut ext_force, transform)) = player_query.get_mut(trigger.target()) {
+        let direction = Vec2::new(transform.up().x, transform.up().y);
 
-    // Move to the camera direction.
-    let rotation = transform.rotation;
+        let v = trigger.value;
+
+        ext_force
+            .apply_force(direction * v * 1000.0)
+            .with_persistence(false);
+    }
 }

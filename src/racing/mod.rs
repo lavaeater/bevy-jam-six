@@ -226,20 +226,8 @@ impl AssetLoader for TracksAssetLoader {
 
 
 #[derive(Debug, InputAction)]
-#[input_action(output = bool)]
-pub struct Forward;
-
-#[derive(Debug, InputAction)]
-#[input_action(output = bool)]
-pub struct Reverse;
-
-#[derive(Debug, InputAction)]
-#[input_action(output = bool)]
-pub struct Left;
-
-#[derive(Debug, InputAction)]
-#[input_action(output = bool)]
-pub struct Right;
+#[input_action(output = Vec2)]
+pub struct Move;
 
 #[derive(Debug, InputAction)]
 #[input_action(output = bool)]

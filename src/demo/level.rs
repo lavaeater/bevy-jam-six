@@ -8,7 +8,7 @@ use crate::{
     screens::Screen,
 };
 use avian2d::PhysicsPlugins;
-use avian2d::prelude::{Gravity, PhysicsDebugPlugin};
+use avian2d::prelude::{Collider, Gravity, PhysicsDebugPlugin, RigidBody};
 use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes::basic::GRAY;
 use bevy::prelude::*;
@@ -135,6 +135,12 @@ fn instantiate_track(
 
         let indices = vec![0, 2, 3, 0, 1, 3];
         mesh.insert_indices(Indices::U32(indices));
+
+        commands.spawn((
+            RigidBody::Static,
+            Collider::capsule(0.5, 1.5),
+            Transform::from_xyz(0.0, 3.0, 0.0),
+        ));
 
         commands.spawn((
             TrackPart,

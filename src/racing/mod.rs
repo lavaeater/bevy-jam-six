@@ -49,7 +49,7 @@ impl RaceTrack {
         let tension = 0.5;
         let binding = self.form_curve();
         let track_curve = binding.0.as_ref().unwrap();
-        let resolution = 100 * track_curve.segments().len();
+        let resolution = 10 * track_curve.segments().len();
         let track_curve = track_curve.iter_positions(resolution).collect::<Vec<_>>();
 
         for i in 0..track_curve.len() {

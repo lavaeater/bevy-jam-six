@@ -118,7 +118,7 @@ fn update_curve(
     
     *curve = Curves(spline.to_curve_cyclic().ok());
     let track_curve = curve.0.as_ref().unwrap();
-    let resolution = 100 * track_curve.segments().len();
+    let resolution = 10 * track_curve.segments().len();
     let track_curve = track_curve.iter_positions(resolution)
         .collect::<Vec<_>>();
     
@@ -163,7 +163,7 @@ fn update_curve(
         commands.spawn((
                            TrackPart,
                            Mesh2d(meshes.add(mesh)),
-                       MeshMaterial2d(materials.add(Color::from(GRAY)))
+                           MeshMaterial2d(materials.add(Color::from(GRAY)))
                            )
         );
 

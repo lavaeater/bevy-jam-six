@@ -70,10 +70,9 @@ pub fn spawn_level(
     ));
 }
 
-fn instantiate_track(
+pub fn instantiate_track(
     current_track: Res<CurrentTrack>,
     mut commands: Commands,
-    mut curve: ResMut<Curves>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut mesh_query: Query<Entity, With<TrackPart>>,
@@ -133,17 +132,15 @@ fn instantiate_track(
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
 
-        let indices = vec![0, 2, 3, 0, 1, 3];
+        let indices = vec![
+            0, 2, 3,
+            0, 1, 3];
         mesh.insert_indices(Indices::U32(indices));
-
-        commands.spawn((
-            RigidBody::Static,
-            Collider::capsule(0.5, 1.5),
-            Transform::from_xyz(0.0, 3.0, 0.0),
-        ));
-
+        
         commands.spawn((
             TrackPart,
+            RigidBody::Static,
+            Collider::convex_hull(vec![*p0, *p2, *p3, *p1]).unwrap(),
             Mesh2d(meshes.add(mesh)),
             MeshMaterial2d(materials.add(Color::from(GRAY))),
         ));

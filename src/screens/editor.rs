@@ -11,7 +11,7 @@ use std::fs;
 use bevy::asset::RenderAssetUsages;
 use bevy::color::palettes::basic::GRAY;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
-use crate::racing::{ControlPoints, Curves, TracksAsset, TrackPart};
+use crate::racing::{ControlPoints, Curves, TracksAsset, TrackPart, RESOLUTION};
 
 pub(super) fn plugin(app: &mut App) {
     app
@@ -118,7 +118,7 @@ fn update_curve(
     
     *curve = Curves(spline.to_curve_cyclic().ok());
     let track_curve = curve.0.as_ref().unwrap();
-    let resolution = 10 * track_curve.segments().len();
+    let resolution = RESOLUTION * track_curve.segments().len();
     let track_curve = track_curve.iter_positions(resolution)
         .collect::<Vec<_>>();
     

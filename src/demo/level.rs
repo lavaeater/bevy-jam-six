@@ -86,15 +86,7 @@ pub fn instantiate_track(
     for mesh in mesh_query.iter_mut() {
         commands.entity(mesh).despawn();
     }
-
-    // let points = current_track.points.iter().copied();
-    // let spline = CubicCardinalSpline::new_catmull_rom(points);
-    // 
-    // *curve = Curves(spline.to_curve_cyclic().ok());
-    // let track_curve = curve.0.as_ref().unwrap();
-    // let resolution = 100 * track_curve.segments().len();
-    // let track_curve = track_curve.iter_positions(resolution).collect::<Vec<_>>();
-
+    
     let bounds = track.get_bounds();
 
     for (i, (p0, p1)) in bounds.iter().enumerate() {

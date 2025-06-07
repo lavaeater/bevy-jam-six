@@ -65,25 +65,20 @@ pub fn player(
         racing_actions,
         shooting_actions,
         Player,
-        Sprite {
-            image: player_assets.ducky.clone(),
-            texture_atlas: Some(TextureAtlas {
-                layout: texture_atlas_layout,
-                index: player_animation.get_atlas_index(),
-            }),
-            ..default()
-        },
-        Collider::capsule(12.5, 20.0),
+        // Sprite {
+        //     image: player_assets.ducky.clone(),
+        //     texture_atlas: Some(TextureAtlas {
+        //         layout: texture_atlas_layout,
+        //         index: player_animation.get_atlas_index(),
+        //     }),
+        //     ..default()
+        // },
+        Collider::rectangle(2.0, 5.0),
         Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
         ColliderDensity(2.0),
         Transform::from_scale(Vec2::splat(8.0).extend(1.0)),
-        // MovementController {
-        //     max_speed,
-        //     ..default()
-        // },
-        // ScreenWrap,
-        player_animation,
+        // player_animation,
     )
 }
 

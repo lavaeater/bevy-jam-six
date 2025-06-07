@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub const RESOLUTION: usize = 5;
+pub const MAP_SCALE: f32 = 5.0;
 
 #[derive(Component)]
 pub struct TrackPart;
@@ -72,7 +73,7 @@ impl RaceTrack {
             let normal = tangent.rotate(Vec2::from_angle(std::f32::consts::PI / -2.0)) * 20.0; // 90° rotation
             let normal2 = normal.rotate(Vec2::from_angle(std::f32::consts::PI));
 
-            normals.push((track_curve[i] + normal, track_curve[i] + normal2));
+            normals.push(((track_curve[i] * MAP_SCALE) + normal * MAP_SCALE,( track_curve[i] * MAP_SCALE) + normal2 * MAP_SCALE));
         }
         normals
     }

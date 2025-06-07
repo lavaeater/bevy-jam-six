@@ -120,10 +120,6 @@ fn update_curve(
     let track_curve = curve.0.as_ref().unwrap();
     let resolution = 100 * track_curve.segments().len();
     let track_curve = track_curve.iter_positions(resolution)
-    //     .map(|pt| { 
-    //     // Here is where we create our polygons, our normals, etc. 
-    //     pt.extend(0.0) 
-    // })
         .collect::<Vec<_>>();
     
     let bounds = compute_bounds(&track_curve);

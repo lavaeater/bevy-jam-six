@@ -27,7 +27,10 @@ pub struct ControlPoints {
     pub selected: Option<usize>,
 }
 
-#[derive(Debug, Clone, Component, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Resource, Default)]
+pub struct CurrentTrack(pub Option<RaceTrack>);
+
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct RaceTrack {
     pub track_name: String,
     pub points: Vec<Vec2>,
@@ -44,17 +47,21 @@ impl RaceTrack {
     pub fn get_bounds(&self) -> Vec<(Vec2, Vec2)> {
         let mut normals = Vec::new();
         let tension = 0.5;
+        let binding = self.form_curve();
+        let track_curve = binding.0.as_ref().unwrap();
+        let resolution = 100 * track_curve.segments().len();
+        let track_curve = track_curve.iter_positions(resolution).collect::<Vec<_>>();
 
-        for i in 0..self.points.len() {
+        for i in 0..track_curve.len() {
             let tangent = if i == 0 {
                 // Forward difference at start
-                (self.points[i + 1] - self.points[i]) * tension * 2.0
-            } else if i == self.points.len() - 1 {
+                (track_curve[i + 1] - track_curve[i]) * tension * 2.0
+            } else if i == track_curve.len() - 1 {
                 // Backward difference at end
-                (self.points[i] - self.points[i - 1]) * tension * 2.0
+                (track_curve[i] - track_curve[i - 1]) * tension * 2.0
             } else {
                 // Central difference for internal points
-                (self.points[i + 1] - self.points[i - 1]) * tension
+                (track_curve[i + 1] - track_curve[i - 1]) * tension
             };
 
             let tangent = tangent.normalize_or_zero();
@@ -62,7 +69,7 @@ impl RaceTrack {
             let normal = tangent.rotate(Vec2::from_angle(std::f32::consts::PI / -2.0)) * 20.0; // 90° rotation
             let normal2 = normal.rotate(Vec2::from_angle(std::f32::consts::PI));
 
-            normals.push((self.points[i] + normal, self.points[i] + normal2));
+            normals.push((track_curve[i] + normal, track_curve[i] + normal2));
         }
         normals
     }

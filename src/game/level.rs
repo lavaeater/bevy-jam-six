@@ -15,6 +15,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_enhanced_input::prelude::{InputContext, InputContextAppExt};
+use crate::game::player::Player;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
@@ -28,7 +29,9 @@ pub(super) fn plugin(app: &mut App) {
         .init_asset::<TracksAsset>()
         .init_asset_loader::<TracksAssetLoader>()
         .register_type::<LevelAssets>()
-        .load_resource::<LevelAssets>();
+        .load_resource::<LevelAssets>()
+        .add_systems(PostUpdate, follow_camera.before(TransformSystem::TransformPropagate).run_if(in_state(Screen::Gameplay)))
+    ;
 }
 
 #[derive(Resource, Asset, Clone, Reflect)]
@@ -68,13 +71,24 @@ pub fn spawn_level(
         Visibility::default(),
         StateScoped(Screen::Gameplay),
         children![
-            player(400.0, &player_assets, &mut texture_atlas_layouts),
+            player(200.0, &player_assets, &mut texture_atlas_layouts),
             (
                 Name::new("Gameplay Music"),
                 music(level_assets.music.clone())
             ),
         ],
     ));
+}
+
+pub fn follow_camera(
+    mut camera_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
+    player_query: Query<&Transform, (With<Player>, Without<Camera>)>,
+) {
+    if let Ok(mut camera_transform) = camera_query.single_mut() {
+        if let Ok(player_transform) = player_query.single() {
+            camera_transform.translation = player_transform.translation;
+        }
+    }
 }
 
 pub fn instantiate_track(

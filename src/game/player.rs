@@ -12,7 +12,7 @@ use crate::{
     },
     racing,
 };
-use avian2d::prelude::{CoefficientCombine, Collider, ColliderDensity, ExternalForce, ExternalTorque, Friction, Restitution, RigidBody};
+use avian2d::prelude::{CoefficientCombine, Collider, ColliderDensity, ExternalForce, ExternalTorque, Friction, MaxLinearSpeed, Restitution, RigidBody};
 use bevy::prelude::KeyCode::*;
 use bevy::prelude::{Name, Query, Trigger, Vec2, With};
 use bevy::{
@@ -72,15 +72,17 @@ pub fn player(
         RigidBody::Dynamic,
         Collider::rectangle(2.0, 3.5),
         ExternalForce::default(),
+        ExternalTorque::default(),
         Transform::from_scale(Vec2::splat(8.0).extend(1.0)),
         ColliderDensity(0.1),
+        MaxLinearSpeed(max_speed),
         // player_animation,
     )
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[reflect(Component)]
-struct Player;
+pub struct Player;
 
 #[derive(Resource, Asset, Clone, Reflect)]
 #[reflect(Resource)]
@@ -115,15 +117,20 @@ impl FromWorld for PlayerAssets {
 // Apply movemenet when `Move` action considered fired.
 fn apply_steering(
     trigger: Trigger<Fired<Move>>,
-    mut player_query: Query<(&mut ExternalForce, &Transform), With<Player>>,
+    mut player_query: Query<(&mut ExternalForce, &mut ExternalTorque, &Transform), With<Player>>,
 ) {
-    if let Ok((mut ext_force, transform)) = player_query.get_mut(trigger.target()) {
+    if let Ok((mut ext_force, mut ext_torque, transform)) = player_query.get_mut(trigger.target()) {
         let direction = Vec2::new(transform.up().x, transform.up().y);
 
-        let v = trigger.value;
+        let v = trigger.value.with_x(0.0);
 
+        let v = direction.rotate(v);
+        
         ext_force
-            .apply_force(direction * v * 1000.0)
+            .apply_force(v * 500.0)
+            .with_persistence(false);
+        
+        ext_torque.apply_torque(v.x * 100.0)
             .with_persistence(false);
     }
 }

@@ -140,46 +140,46 @@ fn apply_steering(
     }
 }
 
-fn control_car(
-    mut query: Query<(&mut LinearVelocity, &Transform), With<Player>>,
-    time: Res<Time>,
-) {
-    if let Ok((mut velocity, transform)) = query.single_mut() {
-        
-    }
-    let dt = time.delta_secs();
-
-    let forward = transform.rotation.mul_vec3(Vec3::Y).truncate(); // car's forward vector
-
-    let speed = velocity.linvel.dot(forward);
-    let mut acceleration = Vec2::ZERO;
-    let turn = if keyboard_input.pressed(KeyCode::A) {
-        1.0
-    } else if keyboard_input.pressed(KeyCode::D) {
-        -1.0
-    } else {
-        0.0
-    };
-
-    // Throttle/brake
-    if keyboard_input.pressed(KeyCode::W) {
-        acceleration += forward * 10.0;
-    }
-    if keyboard_input.pressed(KeyCode::S) {
-        acceleration -= forward * 10.0;
-    }
-
-    // Turning with skidding
-    let skidding = speed.abs() > 2.0;
-    let turn_rate = if skidding { 1.5 } else { 3.0 };
-
-    velocity.angvel = turn as f32 * turn_rate * speed.signum();
-
-    // Apply acceleration
-    velocity.linvel += acceleration * dt;
-
-    // Simulate lateral friction (reduce sideways velocity)
-    let right = Vec2::new(forward.y, -forward.x); // perpendicular
-    let lateral_speed = velocity.linvel.dot(right);
-    velocity.linvel -= right * lateral_speed * 0.8; // damping for slide
-}
+// fn control_car(
+//     mut query: Query<(&mut LinearVelocity, &Transform), With<Player>>,
+//     time: Res<Time>,
+// ) {
+//     if let Ok((mut velocity, transform)) = query.single_mut() {
+//         
+//     }
+//     let dt = time.delta_secs();
+// 
+//     let forward = transform.rotation.mul_vec3(Vec3::Y).truncate(); // car's forward vector
+// 
+//     let speed = velocity.linvel.dot(forward);
+//     let mut acceleration = Vec2::ZERO;
+//     let turn = if keyboard_input.pressed(KeyCode::A) {
+//         1.0
+//     } else if keyboard_input.pressed(KeyCode::D) {
+//         -1.0
+//     } else {
+//         0.0
+//     };
+// 
+//     // Throttle/brake
+//     if keyboard_input.pressed(KeyCode::W) {
+//         acceleration += forward * 10.0;
+//     }
+//     if keyboard_input.pressed(KeyCode::S) {
+//         acceleration -= forward * 10.0;
+//     }
+// 
+//     // Turning with skidding
+//     let skidding = speed.abs() > 2.0;
+//     let turn_rate = if skidding { 1.5 } else { 3.0 };
+// 
+//     velocity.angvel = turn as f32 * turn_rate * speed.signum();
+// 
+//     // Apply acceleration
+//     velocity.linvel += acceleration * dt;
+// 
+//     // Simulate lateral friction (reduce sideways velocity)
+//     let right = Vec2::new(forward.y, -forward.x); // perpendicular
+//     let lateral_speed = velocity.linvel.dot(right);
+//     velocity.linvel -= right * lateral_speed * 0.8; // damping for slide
+// }
